@@ -30,7 +30,6 @@ function fmtTime(h, m, lang) {
 
   if (lang === 'de') {
     const hWord = NUM_DE[h];
-    const nextWord = NUM_DE[next24];
     const next12Word = NUM_DE[next12];
     if (m === 0)  return `${hWord} Uhr`;
     if (m === 5)  return `fünf nach ${hWord}`;
@@ -40,31 +39,30 @@ function fmtTime(h, m, lang) {
     if (m === 25) return `fünf vor halb ${next12Word}`;
     if (m === 30) return `halb ${next12Word}`;
     if (m === 35) return `fünf nach halb ${next12Word}`;
-    if (m === 40) return `zwanzig vor ${nextWord}`;
-    if (m === 45) return `Viertel vor ${nextWord}`;
-    if (m === 50) return `zehn vor ${nextWord}`;
-    if (m === 55) return `fünf vor ${nextWord}`;
+    if (m === 40) return `zwanzig vor ${next12Word}`;
+    if (m === 45) return `Viertel vor ${next12Word}`;
+    if (m === 50) return `zehn vor ${next12Word}`;
+    if (m === 55) return `fünf vor ${next12Word}`;
     return `${hWord} Uhr ${MIN_DE[m]||m}`;
   }
 
   if (lang === 'it') {
     const hWord = NUM_IT[h];
     const next12Word = NUM_IT[next12];
-    const nextWord = NUM_IT[next24];
     if (h === 1 || h === 13) {
       if (m === 0)  return `l'una`;
       if (m === 15) return `l'una e un quarto`;
       if (m === 30) return `l'una e mezza`;
       if (m === 45) return `le ${next12Word} meno un quarto`;
       if (m < 30)   return `l'una e ${m}`;
-      return `le ${nextWord} meno ${60-m}`;
+      return `le ${next12Word} meno ${60-m}`;
     }
     if (m === 0)  return `le ${hWord}`;
     if (m === 15) return `le ${hWord} e un quarto`;
     if (m === 30) return `le ${hWord} e mezza`;
-    if (m === 45) return `le ${nextWord} meno un quarto`;
+    if (m === 45) return `le ${next12Word} meno un quarto`;
     if (m < 30)   return `le ${hWord} e ${m}`;
-    return `le ${nextWord} meno ${60-m}`;
+    return `le ${next12Word} meno ${60-m}`;
   }
 
   if (lang === 'ja') {
@@ -93,7 +91,6 @@ function getFragments(h, m, lang) {
   if (lang === 'de') {
     const hW = NUM_DE[h];
     const n12W = NUM_DE[next12];
-    const n24W = NUM_DE[next24];
     if (m === 0)  return { correct: [hW, 'Uhr'],                          decoys: ['nach','vor','halb','Viertel'] };
     if (m === 5)  return { correct: ['fünf','nach',hW],                   decoys: ['vor','halb','Uhr','zehn'] };
     if (m === 10) return { correct: ['zehn','nach',hW],                   decoys: ['vor','fünf','halb','Uhr'] };
@@ -102,10 +99,10 @@ function getFragments(h, m, lang) {
     if (m === 25) return { correct: ['fünf','vor','halb',n12W],           decoys: ['nach',hW,'Viertel','zehn'] };
     if (m === 30) return { correct: ['halb',n12W],                        decoys: ['nach','vor',hW,'Uhr','fünf'] };
     if (m === 35) return { correct: ['fünf','nach','halb',n12W],          decoys: ['vor',hW,'zehn','Uhr'] };
-    if (m === 40) return { correct: ['zwanzig','vor',n24W],               decoys: ['nach','halb',hW,'Uhr'] };
-    if (m === 45) return { correct: ['Viertel','vor',n24W],               decoys: ['nach','halb',hW,'zehn'] };
-    if (m === 50) return { correct: ['zehn','vor',n24W],                  decoys: ['nach','halb',hW,'fünf'] };
-    if (m === 55) return { correct: ['fünf','vor',n24W],                  decoys: ['nach','halb',hW,'zehn'] };
+    if (m === 40) return { correct: ['zwanzig','vor',n12W],               decoys: ['nach','halb',hW,'Uhr'] };
+    if (m === 45) return { correct: ['Viertel','vor',n12W],               decoys: ['nach','halb',hW,'zehn'] };
+    if (m === 50) return { correct: ['zehn','vor',n12W],                  decoys: ['nach','halb',hW,'fünf'] };
+    if (m === 55) return { correct: ['fünf','vor',n12W],                  decoys: ['nach','halb',hW,'zehn'] };
     return { correct: [hW,'Uhr',MIN_DE[m]||String(m)], decoys: ['nach','vor','halb'] };
   }
 
@@ -122,7 +119,7 @@ function getFragments(h, m, lang) {
 
   if (lang === 'it') {
     const hW = NUM_IT[h];
-    const nW = NUM_IT[next24];
+    const nW = NUM_IT[next12];
     const isUna = (h === 1 || h === 13);
     if (m === 0)  return isUna ? {correct:["l'una"],          decoys:['le','e','mezza','meno']}
                                : {correct:['le',hW],          decoys:["l'una",'e','mezza','meno']};
