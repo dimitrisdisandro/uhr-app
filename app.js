@@ -116,7 +116,18 @@ function wrongAnswers(h, m, lang, diff) {
   return [...new Set(pool)].sort(()=>Math.random()-.5).slice(0, 3);
 }
 
-// ── Wrong answer explanation ──────────────────────────────────────
+// ── Speech-safe time string (removes ambiguity for TTS) ───────────
+function fmtTimeSpeak(h, m, lang) {
+  const t = fmtTime(h, m, lang);
+  // For German: TTS sometimes adds "Uhr" after "halb X" or "Viertel X"
+  // We keep fmtTime output as-is — it's already correct.
+  // But for the correction phrase, wrap non-full-hour DE times to avoid TTS artifact
+  if (lang === 'de' && m !== 0) {
+    // Remove any trailing " Uhr" that might have crept in
+    return t.replace(/\s+Uhr\s*$/, '');
+  }
+  return t;
+}
 function wrongExplanation(h, m, uH, uM, lang) {
   const h12v = h % 12 === 0 ? 12 : h % 12;
   const uH12v = uH % 12 === 0 ? 12 : uH % 12;
@@ -732,15 +743,16 @@ function renderTask() {
         G.answered=true; stopTimer(); Audio.play('tick');
         const ok = opt===fmtTime(G.tH,G.tM,settings.lang);
         const correctTime = fmtTime(G.tH, G.tM, settings.lang);
-        // Speak: chosen answer if correct, correction phrase if wrong
+        const correctSpeak = fmtTimeSpeak(G.tH, G.tM, settings.lang);
+        const optSpeak = settings.lang === 'de' && G.tM !== 0 ? opt.replace(/\s+Uhr\s*$/, '') : opt;
         if (ok) {
-          Audio.speak(correctTime, settings.lang);
+          Audio.speak(correctSpeak, settings.lang);
         } else {
           const phrases = {
-            de: `Das ist nicht ${opt}. Die richtige Antwort wäre ${withUhr(correctTime, 'de')}.`,
-            it: `Non è ${opt}. La risposta corretta è ${correctTime}.`,
-            en: `That's not ${opt}. The correct answer is ${correctTime}.`,
-            ja: `${opt}ではありません。正しい答えは${correctTime}です。`
+            de: `Das ist nicht ${optSpeak}. Die richtige Antwort wäre ${correctSpeak}.`,
+            it: `Non è ${opt}. La risposta corretta è ${correctSpeak}.`,
+            en: `That's not ${opt}. The correct answer is ${correctSpeak}.`,
+            ja: `${opt}ではありません。正しい答えは${correctSpeak}です。`
           };
           Audio.speak(phrases[settings.lang] || phrases.de, settings.lang);
         }
@@ -785,7 +797,7 @@ function renderTask() {
     document.getElementById('clock-wrap').style.display = 'flex';
     const tb = document.getElementById('text-task-box'); tb.style.display='block';
     document.getElementById('text-task-main').textContent = fmtTime(G.tH, G.tM, settings.lang);
-    Audio.speak(fmtTime(G.tH, G.tM, settings.lang), settings.lang);
+    Audio.speak(fmtTimeSpeak(G.tH, G.tM, settings.lang), settings.lang);
     G.uH = (G.tH + 5) % 24; G.uM = 0;
     Clock.draw(document.getElementById('clock-svg'), G.uH, G.uM, true, null);
     updateLiveLabel();
@@ -847,16 +859,16 @@ function renderTask() {
       if (G.answered||G.wordAnswer.length===0) return;
       G.answered=true; wa.classList.add('answered'); Audio.play('tick'); stopTimer();
       const ok = G.wordAnswer.join(' ')===frag.correct.join(' ');
-      const correctTime = fmtTime(G.tH, G.tM, settings.lang);
+      const correctSpeak = fmtTimeSpeak(G.tH, G.tM, settings.lang);
       if (ok) {
-        Audio.speak(correctTime, settings.lang);
+        Audio.speak(correctSpeak, settings.lang);
       } else {
         const chosen = G.wordAnswer.join(' ');
         const phrases = {
-          de: `Das ist nicht ${chosen}. Die richtige Antwort wäre ${withUhr(correctTime, 'de')}.`,
-          it: `Non è ${chosen}. La risposta corretta è ${correctTime}.`,
-          en: `That's not ${chosen}. The correct answer is ${correctTime}.`,
-          ja: `${chosen}ではありません。正しい答えは${correctTime}です。`
+          de: `Das ist nicht ${chosen}. Die richtige Antwort wäre ${correctSpeak}.`,
+          it: `Non è ${chosen}. La risposta corretta è ${correctSpeak}.`,
+          en: `That's not ${chosen}. The correct answer is ${correctSpeak}.`,
+          ja: `${chosen}ではありません。正しい答えは${correctSpeak}です。`
         };
         Audio.speak(phrases[settings.lang] || phrases.de, settings.lang);
       }
