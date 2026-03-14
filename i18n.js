@@ -178,6 +178,8 @@ const LANGS = {
     sliderHours:'Stunden', sliderMinutes:'Minuten',
     modeDetails:'Details pro Modus',
     localStorageHint:'⚠️ Dein Fortschritt wird lokal auf diesem Gerät gespeichert. Beim Löschen des Browser-Caches oder der App-Daten gehen die Statistiken verloren.',
+    aboutTitle:'Über diese App',
+    aboutText:'Eine kostenlose Lern-App für Kinder, die das Lesen und Stellen einer analogen Uhr üben möchten. Verfügbar in Deutsch, Italienisch, Englisch und Japanisch.\n\nDer Fortschritt wird lokal auf diesem Gerät gespeichert – keine Registrierung, keine Werbung, keine externe Datenübertragung.\n\nDiese App wurde für den privaten Gebrauch entwickelt und wird ohne Gewähr bereitgestellt. Sie dient ausschliesslich zu Lernzwecken.',
     fb:{ correct:'Super gemacht! 🌟', wrong:'Fast! Versuch es nochmal.', hint:'Kurzer Zeiger = Stunden, langer Zeiger = Minuten.' }
   },
   it: {
@@ -200,6 +202,8 @@ const LANGS = {
     sliderHours:'Ore', sliderMinutes:'Minuti',
     modeDetails:'Dettagli per modalità',
     localStorageHint:'⚠️ I tuoi progressi vengono salvati localmente su questo dispositivo. Se cancelli la cache del browser o i dati dell\'app, le statistiche andranno perse.',
+    aboutTitle:"Informazioni sull'app",
+    aboutText:"Un'app educativa gratuita per bambini che vogliono imparare a leggere e impostare un orologio analogico. Disponibile in tedesco, italiano, inglese e giapponese.\n\nI progressi vengono salvati localmente su questo dispositivo – nessuna registrazione, nessuna pubblicità, nessun trasferimento di dati esterni.\n\nQuesta app è stata sviluppata per uso privato e viene fornita senza garanzia. È destinata esclusivamente a scopi didattici.",
     fb:{ correct:'Bravo! 🌟', wrong:'Quasi! Riprova.', hint:'Lancetta corta = ore, lunga = minuti.' }
   },
   en: {
@@ -222,6 +226,8 @@ const LANGS = {
     sliderHours:'Hours', sliderMinutes:'Minutes',
     modeDetails:'Details per mode',
     localStorageHint:'⚠️ Your progress is saved locally on this device. If you clear the browser cache or app data, your statistics will be lost.',
+    aboutTitle:'About this app',
+    aboutText:'A free learning app for children who want to practise reading and setting an analogue clock. Available in German, Italian, English and Japanese.\n\nProgress is saved locally on this device – no registration, no advertising, no external data transfer.\n\nThis app was developed for private use and is provided without warranty. It is intended for educational purposes only.',
     fb:{ correct:'Well done! 🌟', wrong:'Almost! Try again.', hint:'Short hand = hours, long hand = minutes.' }
   },
   ja: {
@@ -244,6 +250,8 @@ const LANGS = {
     sliderHours:'時', sliderMinutes:'分',
     modeDetails:'モード別詳細',
     localStorageHint:'⚠️ 進捗はこのデバイスにローカルに保存されます。ブラウザのキャッシュやアプリデータを削除すると、統計が失われます。',
+    aboutTitle:'このアプリについて',
+    aboutText:'アナログ時計の読み方と合わせ方を練習したい子どもたちのための無料学習アプリです。ドイツ語・イタリア語・英語・日本語に対応しています。\n\n進捗はこのデバイスにローカルに保存されます。登録不要・広告なし・外部データ転送なし。\n\nこのアプリは個人使用のために開発されたものであり、保証なしで提供されています。教育目的のみを意図しています。',
     fb:{ correct:'よくできました！🌟', wrong:'惜しい！もう一度。', hint:'短い針が時、長い針が分です。' }
   }
 };

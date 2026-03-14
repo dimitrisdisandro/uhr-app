@@ -696,6 +696,19 @@ function renderSettingsScreen() {
       saveCurrentProfile(); showScreen('app'); renderApp();
     }
   };
+
+  // About
+  const about = document.getElementById('about-section');
+  about.innerHTML = '';
+  about.style.cssText = 'margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid var(--border);';
+  const aboutTitle = document.createElement('div');
+  aboutTitle.style.cssText = 'font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.75rem;';
+  aboutTitle.textContent = L.aboutTitle;
+  const aboutText = document.createElement('p');
+  aboutText.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.7;white-space:pre-line;';
+  aboutText.textContent = L.aboutText;
+  about.appendChild(aboutTitle);
+  about.appendChild(aboutText);
 }
 
 // ── Live clock label ──────────────────────────────────────────────
