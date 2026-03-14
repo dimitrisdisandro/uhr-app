@@ -518,6 +518,8 @@ function teardownDrag() {
   const svg = document.getElementById('clock-svg');
   if (svg && svg._onMove) { document.removeEventListener('mousemove', svg._onMove); document.removeEventListener('touchmove', svg._onMove); svg._onMove = null; }
   if (svg && svg._onUp)   { document.removeEventListener('mouseup',  svg._onUp);   document.removeEventListener('touchend',  svg._onUp);   svg._onUp   = null; }
+  const wordArea = document.getElementById('word-area');
+  if (wordArea && wordArea._stopDrag) { wordArea.removeEventListener('touchstart', wordArea._stopDrag); wordArea._stopDrag = null; }
   G.dragging = null;
 }
 
@@ -528,6 +530,8 @@ function setupDrag() {
   svg.onmousedown = svg.ontouchstart = (e)=>{
     const t = e.target.closest('[data-hand]');
     if (!t) return;
+    // Extra check: make sure the handle is inside this SVG
+    if (!svg.contains(t)) return;
     e.preventDefault();
     e.stopPropagation();
     G.dragging = t.dataset.hand;
@@ -553,8 +557,15 @@ function setupDrag() {
   svg._onUp   = onUp;
   document.addEventListener('mousemove', onMove);
   document.addEventListener('mouseup', onUp);
+  // touchmove on document but only acts when G.dragging is set (which requires touch on SVG handle)
   document.addEventListener('touchmove', onMove, {passive:false});
   document.addEventListener('touchend', onUp);
+  // Also block any stray touchmove on the word-area from reaching the drag handler
+  const wordArea = document.getElementById('word-area');
+  if (wordArea) {
+    wordArea._stopDrag = (e)=>{ if(G.dragging) return; e.stopPropagation(); };
+    wordArea.addEventListener('touchstart', wordArea._stopDrag, {passive:false});
+  }
 }
 
 // ── Hide helpers ──────────────────────────────────────────────────
@@ -684,6 +695,7 @@ function renderTask() {
       bank.innerHTML='';
       G.wordBank.forEach((w,i)=>{
         const ch=document.createElement('div'); ch.className='word-chip'; ch.textContent=w;
+        ch.ontouchstart = (e)=>e.stopPropagation();
         ch.onclick=()=>{ if(G.answered)return; Audio.play('place'); G.wordAnswer.push(w); G.wordBank.splice(i,1); rebuildChips(); rebuildAnswer(); };
         bank.appendChild(ch);
       });
@@ -692,6 +704,7 @@ function renderTask() {
       [...answerEl.children].forEach(c=>{ if(c.id!=='word-answer-label')c.remove(); });
       G.wordAnswer.forEach((w,i)=>{
         const ch=document.createElement('div'); ch.className='word-chip in-answer'; ch.textContent=w;
+        ch.ontouchstart = (e)=>e.stopPropagation();
         ch.onclick=()=>{ if(G.answered)return; Audio.play('tick'); G.wordBank.push(w); G.wordAnswer.splice(i,1); rebuildChips(); rebuildAnswer(); };
         answerEl.appendChild(ch);
       });

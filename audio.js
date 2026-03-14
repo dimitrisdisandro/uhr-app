@@ -65,11 +65,14 @@ const Audio = (() => {
     if (!speechEnabled) return;
     if (!window.speechSynthesis) return;
     window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text);
-    const langMap = { de: 'de-DE', it: 'it-IT', en: 'en-GB', ja: 'ja-JP' };
-    u.lang = langMap[lang] || 'de-DE';
-    u.rate = 0.85;
-    window.speechSynthesis.speak(u);
+    // Small delay so cancel() completes before new utterance starts
+    setTimeout(() => {
+      const u = new SpeechSynthesisUtterance(text);
+      const langMap = { de: 'de-DE', it: 'it-IT', en: 'en-GB', ja: 'ja-JP' };
+      u.lang = langMap[lang] || 'de-DE';
+      u.rate = 0.85;
+      window.speechSynthesis.speak(u);
+    }, 120);
   }
 
   function setSoundEnabled(v) { soundEnabled = v; }
