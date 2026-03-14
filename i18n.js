@@ -1,84 +1,146 @@
-// i18n.js — all translations and time formatting
+// i18n.js — translations and time formatting (24h, numbers written out)
+
+// ── Number words ──────────────────────────────────────────────────
+const NUM_DE = ['null','ein','zwei','drei','vier','fünf','sechs','sieben','acht','neun','zehn',
+  'elf','zwölf','dreizehn','vierzehn','fünfzehn','sechzehn','siebzehn','achtzehn','neunzehn',
+  'zwanzig','einundzwanzig','zweiundzwanzig','dreiundzwanzig'];
+const NUM_IT = ['zero','una','due','tre','quattro','cinque','sei','sette','otto','nove','dieci',
+  'undici','dodici','tredici','quattordici','quindici','sedici','diciassette','diciotto','diciannove',
+  'venti','ventuno','ventidue','ventitré'];
+const NUM_EN = ['zero','one','two','three','four','five','six','seven','eight','nine','ten',
+  'eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen',
+  'twenty','twenty-one','twenty-two','twenty-three'];
+const NUM_JA = ['ゼロ','一','二','三','四','五','六','七','八','九','十',
+  '十一','十二','十三','十四','十五','十六','十七','十八','十九',
+  '二十','二十一','二十二','二十三'];
+
+// Minute words DE (0,5,10,...55)
+const MIN_DE = {0:'null',5:'fünf',10:'zehn',15:'fünfzehn',20:'zwanzig',25:'fünfundzwanzig',
+  30:'dreißig',35:'fünfunddreißig',40:'vierzig',45:'fünfundvierzig',50:'fünfzig',55:'fünfundfünfzig'};
+
+function h12(h) { return h % 12 === 0 ? 12 : h % 12; }
+function nextH12(h) { return h12(h) % 12 + 1; }
+// For 24h: next hour wraps at 24
+function nextH24(h) { return (h + 1) % 24; }
 
 function fmtTime(h, m, lang) {
-  const h12 = h % 12 === 0 ? 12 : h % 12;
-  const mm = m.toString().padStart(2, '0');
-  const next = h12 % 12 + 1;
+  const h12v = h12(h);
+  const next12 = nextH12(h);
+  const next24 = nextH24(h);
+
   if (lang === 'de') {
-    if (m === 0)  return `${h12} Uhr`;
-    if (m === 5)  return `fünf nach ${h12}`;
-    if (m === 10) return `zehn nach ${h12}`;
-    if (m === 15) return `Viertel nach ${h12}`;
-    if (m === 20) return `zwanzig nach ${h12}`;
-    if (m === 25) return `fünf vor halb ${next}`;
-    if (m === 30) return `halb ${next}`;
-    if (m === 35) return `fünf nach halb ${next}`;
-    if (m === 40) return `zwanzig vor ${next}`;
-    if (m === 45) return `Viertel vor ${next}`;
-    if (m === 50) return `zehn vor ${next}`;
-    if (m === 55) return `fünf vor ${next}`;
-    return `${h12}:${mm} Uhr`;
+    const hWord = NUM_DE[h];
+    const nextWord = NUM_DE[next24];
+    const next12Word = NUM_DE[next12];
+    if (m === 0)  return `${hWord} Uhr`;
+    if (m === 5)  return `fünf nach ${hWord}`;
+    if (m === 10) return `zehn nach ${hWord}`;
+    if (m === 15) return `Viertel nach ${hWord}`;
+    if (m === 20) return `zwanzig nach ${hWord}`;
+    if (m === 25) return `fünf vor halb ${next12Word}`;
+    if (m === 30) return `halb ${next12Word}`;
+    if (m === 35) return `fünf nach halb ${next12Word}`;
+    if (m === 40) return `zwanzig vor ${nextWord}`;
+    if (m === 45) return `Viertel vor ${nextWord}`;
+    if (m === 50) return `zehn vor ${nextWord}`;
+    if (m === 55) return `fünf vor ${nextWord}`;
+    return `${hWord} Uhr ${MIN_DE[m]||m}`;
   }
+
   if (lang === 'it') {
-    if (m === 0)  return h12 === 1 ? `l'una` : `le ${h12}`;
-    if (m === 15) return h12 === 1 ? `l'una e un quarto` : `le ${h12} e un quarto`;
-    if (m === 30) return h12 === 1 ? `l'una e mezza` : `le ${h12} e mezza`;
-    if (m === 45) return `le ${next} meno un quarto`;
-    if (m < 30)   return h12 === 1 ? `l'una e ${mm}` : `le ${h12} e ${mm}`;
-    return `le ${next} meno ${60 - m}`;
+    const hWord = NUM_IT[h];
+    const next12Word = NUM_IT[next12];
+    const nextWord = NUM_IT[next24];
+    if (h === 1 || h === 13) {
+      if (m === 0)  return `l'una`;
+      if (m === 15) return `l'una e un quarto`;
+      if (m === 30) return `l'una e mezza`;
+      if (m === 45) return `le ${next12Word} meno un quarto`;
+      if (m < 30)   return `l'una e ${m}`;
+      return `le ${nextWord} meno ${60-m}`;
+    }
+    if (m === 0)  return `le ${hWord}`;
+    if (m === 15) return `le ${hWord} e un quarto`;
+    if (m === 30) return `le ${hWord} e mezza`;
+    if (m === 45) return `le ${nextWord} meno un quarto`;
+    if (m < 30)   return `le ${hWord} e ${m}`;
+    return `le ${nextWord} meno ${60-m}`;
   }
+
   if (lang === 'ja') {
-    if (m === 0)  return `${h12}時`;
-    if (m === 30) return `${h12}時半`;
-    return `${h12}時${mm}分`;
+    const mm = m.toString().padStart(2,'0');
+    if (m === 0)  return `${h}時`;
+    if (m === 30) return `${h}時半`;
+    return `${h}時${mm}分`;
   }
+
   // en
-  if (m === 0)  return `${h12} o'clock`;
-  if (m === 15) return `quarter past ${h12}`;
-  if (m === 30) return `half past ${h12}`;
-  if (m === 45) return `quarter to ${next}`;
-  if (m < 30)   return `${m} past ${h12}`;
-  return `${60 - m} to ${next}`;
+  const hWord = NUM_EN[h12v];
+  const nextWord = NUM_EN[next12];
+  if (m === 0)  return `${hWord} o'clock`;
+  if (m === 15) return `quarter past ${hWord}`;
+  if (m === 30) return `half past ${hWord}`;
+  if (m === 45) return `quarter to ${nextWord}`;
+  if (m < 30)   return `${m} past ${hWord}`;
+  return `${60-m} to ${nextWord}`;
 }
 
 function getFragments(h, m, lang) {
-  const h12 = h % 12 === 0 ? 12 : h % 12;
-  const next = h12 % 12 + 1;
+  const h12v = h12(h);
+  const next12 = nextH12(h);
+  const next24 = nextH24(h);
+
   if (lang === 'de') {
-    if (m === 0)  return { correct: [`${h12}`, 'Uhr'],                    decoys: ['nach','vor','halb','Viertel'] };
-    if (m === 5)  return { correct: ['fünf','nach',`${h12}`],             decoys: ['vor','halb','Uhr','zehn'] };
-    if (m === 10) return { correct: ['zehn','nach',`${h12}`],             decoys: ['vor','fünf','halb','Uhr'] };
-    if (m === 15) return { correct: ['Viertel','nach',`${h12}`],          decoys: ['vor','halb','zehn','Uhr'] };
-    if (m === 20) return { correct: ['zwanzig','nach',`${h12}`],          decoys: ['vor','halb','fünf','Uhr'] };
-    if (m === 25) return { correct: ['fünf','vor','halb',`${next}`],      decoys: ['nach',`${h12}`,'Viertel','zehn'] };
-    if (m === 30) return { correct: ['halb',`${next}`],                   decoys: ['nach','vor',`${h12}`,'Uhr','fünf'] };
-    if (m === 35) return { correct: ['fünf','nach','halb',`${next}`],     decoys: ['vor',`${h12}`,'zehn','Uhr'] };
-    if (m === 40) return { correct: ['zwanzig','vor',`${next}`],          decoys: ['nach','halb',`${h12}`,'Uhr'] };
-    if (m === 45) return { correct: ['Viertel','vor',`${next}`],          decoys: ['nach','halb',`${h12}`,'zehn'] };
-    if (m === 50) return { correct: ['zehn','vor',`${next}`],             decoys: ['nach','halb',`${h12}`,'fünf'] };
-    if (m === 55) return { correct: ['fünf','vor',`${next}`],             decoys: ['nach','halb',`${h12}`,'zehn'] };
-    return { correct: [`${h12}`,':',`${m.toString().padStart(2,'0')}`,'Uhr'], decoys: ['nach','vor'] };
+    const hW = NUM_DE[h];
+    const n12W = NUM_DE[next12];
+    const n24W = NUM_DE[next24];
+    if (m === 0)  return { correct: [hW, 'Uhr'],                          decoys: ['nach','vor','halb','Viertel'] };
+    if (m === 5)  return { correct: ['fünf','nach',hW],                   decoys: ['vor','halb','Uhr','zehn'] };
+    if (m === 10) return { correct: ['zehn','nach',hW],                   decoys: ['vor','fünf','halb','Uhr'] };
+    if (m === 15) return { correct: ['Viertel','nach',hW],                decoys: ['vor','halb','zehn','Uhr'] };
+    if (m === 20) return { correct: ['zwanzig','nach',hW],                decoys: ['vor','halb','fünf','Uhr'] };
+    if (m === 25) return { correct: ['fünf','vor','halb',n12W],           decoys: ['nach',hW,'Viertel','zehn'] };
+    if (m === 30) return { correct: ['halb',n12W],                        decoys: ['nach','vor',hW,'Uhr','fünf'] };
+    if (m === 35) return { correct: ['fünf','nach','halb',n12W],          decoys: ['vor',hW,'zehn','Uhr'] };
+    if (m === 40) return { correct: ['zwanzig','vor',n24W],               decoys: ['nach','halb',hW,'Uhr'] };
+    if (m === 45) return { correct: ['Viertel','vor',n24W],               decoys: ['nach','halb',hW,'zehn'] };
+    if (m === 50) return { correct: ['zehn','vor',n24W],                  decoys: ['nach','halb',hW,'fünf'] };
+    if (m === 55) return { correct: ['fünf','vor',n24W],                  decoys: ['nach','halb',hW,'zehn'] };
+    return { correct: [hW,'Uhr',MIN_DE[m]||String(m)], decoys: ['nach','vor','halb'] };
   }
+
   if (lang === 'en') {
-    if (m === 0)  return { correct: [`${h12}`, "o'clock"],               decoys: ['past','to','half','quarter'] };
-    if (m === 15) return { correct: ['quarter','past',`${h12}`],         decoys: ['to','half',`${next}`,'five'] };
-    if (m === 30) return { correct: ['half','past',`${h12}`],            decoys: ['to','quarter',`${next}`,'five'] };
-    if (m === 45) return { correct: ['quarter','to',`${next}`],          decoys: ['past','half',`${h12}`,'five'] };
-    if (m < 30)   return { correct: [`${m}`,'past',`${h12}`],           decoys: ['to',`${next}`,'half','quarter'] };
-    return         { correct: [`${60-m}`,'to',`${next}`],               decoys: ['past',`${h12}`,'half','quarter'] };
+    const hW = NUM_EN[h12v];
+    const nW = NUM_EN[next12];
+    if (m === 0)  return { correct: [hW, "o'clock"],              decoys: ['past','to','half','quarter'] };
+    if (m === 15) return { correct: ['quarter','past',hW],        decoys: ['to','half',nW,'five'] };
+    if (m === 30) return { correct: ['half','past',hW],           decoys: ['to','quarter',nW,'five'] };
+    if (m === 45) return { correct: ['quarter','to',nW],          decoys: ['past','half',hW,'five'] };
+    if (m < 30)   return { correct: [String(m),'past',hW],        decoys: ['to',nW,'half','quarter'] };
+    return         { correct: [String(60-m),'to',nW],             decoys: ['past',hW,'half','quarter'] };
   }
+
   if (lang === 'it') {
-    if (m === 0)  return h12===1 ? {correct:["l'una"],decoys:['le','e','mezza','meno']} : {correct:['le',`${h12}`],decoys:["l'una",'e','mezza','meno']};
-    if (m === 30) return h12===1 ? {correct:["l'una",'e','mezza'],decoys:['le','meno','un','quarto']} : {correct:['le',`${h12}`,'e','mezza'],decoys:["l'una",'meno','un','quarto']};
-    if (m === 15) return { correct: ['le',`${h12}`,'e','un','quarto'],   decoys: ["l'una",'meno','mezza',`${next}`] };
-    if (m === 45) return { correct: ['le',`${next}`,'meno','un','quarto'],decoys: [`${h12}`,'e','mezza','dopo'] };
-    return         { correct: ['le',`${h12}`,'e',`${m.toString().padStart(2,'0')}`], decoys: ['meno',`${next}`,'mezza','quarto'] };
+    const hW = NUM_IT[h];
+    const nW = NUM_IT[next24];
+    const isUna = (h === 1 || h === 13);
+    if (m === 0)  return isUna ? {correct:["l'una"],          decoys:['le','e','mezza','meno']}
+                               : {correct:['le',hW],          decoys:["l'una",'e','mezza','meno']};
+    if (m === 30) return isUna ? {correct:["l'una",'e','mezza'],decoys:['le','meno','un','quarto']}
+                               : {correct:['le',hW,'e','mezza'],decoys:["l'una",'meno','un','quarto']};
+    if (m === 15) return { correct: isUna?["l'una",'e','un','quarto']:['le',hW,'e','un','quarto'], decoys: ['meno','mezza',nW,'dopo'] };
+    if (m === 45) return { correct: ['le',nW,'meno','un','quarto'], decoys: [hW,'e','mezza','dopo'] };
+    return isUna  ? { correct: ["l'una",'e',String(m)],       decoys: ['le','meno',nW,'mezza'] }
+                  : { correct: ['le',hW,'e',String(m)],       decoys: ["l'una",'meno',nW,'mezza'] };
   }
+
   if (lang === 'ja') {
-    if (m === 0)  return { correct: [`${h12}`, '時'],                    decoys: ['半','分','30','15'] };
-    if (m === 30) return { correct: [`${h12}`, '時半'],                  decoys: ['分',`${m}`,`${next}`,'時'] };
-    return         { correct: [`${h12}`, '時', `${m.toString().padStart(2,'0')}`, '分'], decoys: [`${next}`,`${60-m}`,'半'] };
+    const mm = m.toString().padStart(2,'0');
+    if (m === 0)  return { correct: [`${h}`, '時'],             decoys: ['半','分','30','15'] };
+    if (m === 30) return { correct: [`${h}`, '時半'],           decoys: ['分',String(m),String(next24),'時'] };
+    return         { correct: [`${h}`, '時', mm, '分'],         decoys: [String(next24),String(60-m),'半'] };
   }
+
   return { correct: [fmtTime(h, m, lang)], decoys: [] };
 }
 
@@ -92,15 +154,15 @@ const LANGS = {
     correct:'Richtig', total:'Gesamt', streak:'Serie', level:'Stufe:',
     check:'Prüfen', next:'Weiter ➜', hint:'Tipp 💡', reset:'↺',
     readTask:()=>'Wie viel Uhr ist es?', readSub:()=>'Wähle die richtige Antwort.',
-    setTask:(h,m)=>`Stelle die Uhr auf: ${fmtTime(h,m,'de')}`, setSub:()=>'Ziehe den blauen Griff (Stunden) und grauen Griff (Minuten).',
+    setTask:(h,m)=>`Stelle die Uhr auf: ${fmtTime(h,m,'de')}`, setSub:()=>'Schieberegler oder Zeiger ziehen.',
     textSetTask:()=>'Stelle die Zeiger richtig!', textSetSub:()=>'Lies den Text und stelle die Uhr entsprechend ein.',
     wordTask:()=>'Richtige Reihenfolge?', wordSub:()=>'Tippe die Wörter in der richtigen Reihenfolge.',
     wordBankLabel:'Verfügbare Wörter:', wordAnswerLabel:'Deine Antwort:',
     settingsTitle:'Einstellungen', timerLabel:'Zeitlimit', speechLabel:'Vorlesen',
     soundLabel:'Ton', langLabel:'Sprache', resetLabel:'Fortschritt zurücksetzen',
     timerOpts:['Aus','5s','10s','15s'], badgesTitle:'Abzeichen',
-    dailyText:'Tagesaufgabe:', on:'EIN', off:'AUS',
-    pathLabel:'Lernpfad',
+    dailyText:'Tagesaufgabe:', on:'EIN', off:'AUS', pathLabel:'Lernpfad',
+    sliderHours:'Stunden', sliderMinutes:'Minuten',
     fb:{ correct:'Super gemacht! 🌟', wrong:'Fast! Versuch es nochmal.', hint:'Kurzer Zeiger = Stunden, langer Zeiger = Minuten.' }
   },
   it: {
@@ -112,15 +174,15 @@ const LANGS = {
     correct:'Corretti', total:'Totale', streak:'Serie', level:'Livello:',
     check:'Verifica', next:'Avanti ➜', hint:'Suggerimento 💡', reset:'↺',
     readTask:()=>"Che ora è?", readSub:()=>'Scegli la risposta corretta.',
-    setTask:(h,m)=>`Metti l'orologio alle ${fmtTime(h,m,'it')}`, setSub:()=>'Trascina il cerchio blu (ore) e grigio (minuti).',
+    setTask:(h,m)=>`Metti l'orologio alle ${fmtTime(h,m,'it')}`, setSub:()=>'Usa i cursori o trascina le lancette.',
     textSetTask:()=>"Imposta le lancette!", textSetSub:()=>"Leggi il testo e imposta l'orologio.",
     wordTask:()=>"Ordine corretto?", wordSub:()=>"Tocca le parole nell'ordine corretto.",
     wordBankLabel:'Parole disponibili:', wordAnswerLabel:'La tua risposta:',
     settingsTitle:'Impostazioni', timerLabel:'Timer', speechLabel:'Leggi ad alta voce',
     soundLabel:'Suono', langLabel:'Lingua', resetLabel:'Azzera i progressi',
     timerOpts:['No','5s','10s','15s'], badgesTitle:'Medaglie',
-    dailyText:'Compito del giorno:', on:'SÌ', off:'NO',
-    pathLabel:'Percorso',
+    dailyText:'Compito del giorno:', on:'SÌ', off:'NO', pathLabel:'Percorso',
+    sliderHours:'Ore', sliderMinutes:'Minuti',
     fb:{ correct:'Bravo! 🌟', wrong:'Quasi! Riprova.', hint:'Lancetta corta = ore, lunga = minuti.' }
   },
   en: {
@@ -132,15 +194,15 @@ const LANGS = {
     correct:'Correct', total:'Total', streak:'Streak', level:'Level:',
     check:'Check', next:'Next ➜', hint:'Hint 💡', reset:'↺',
     readTask:()=>'What time is it?', readSub:()=>'Choose the correct time.',
-    setTask:(h,m)=>`Set the clock to ${fmtTime(h,m,'en')}`, setSub:()=>'Drag the blue handle (hours) and grey handle (minutes).',
+    setTask:(h,m)=>`Set the clock to ${fmtTime(h,m,'en')}`, setSub:()=>'Use the sliders or drag the hands.',
     textSetTask:()=>'Set the hands correctly!', textSetSub:()=>'Read the text and set the clock.',
     wordTask:()=>'Correct order?', wordSub:()=>'Tap the words in the correct order.',
     wordBankLabel:'Available words:', wordAnswerLabel:'Your answer:',
     settingsTitle:'Settings', timerLabel:'Time limit', speechLabel:'Read aloud',
     soundLabel:'Sound', langLabel:'Language', resetLabel:'Reset progress',
     timerOpts:['Off','5s','10s','15s'], badgesTitle:'Badges',
-    dailyText:'Daily task:', on:'ON', off:'OFF',
-    pathLabel:'Learning path',
+    dailyText:'Daily task:', on:'ON', off:'OFF', pathLabel:'Learning path',
+    sliderHours:'Hours', sliderMinutes:'Minutes',
     fb:{ correct:'Well done! 🌟', wrong:'Almost! Try again.', hint:'Short hand = hours, long hand = minutes.' }
   },
   ja: {
@@ -152,15 +214,15 @@ const LANGS = {
     correct:'正解', total:'合計', streak:'連続', level:'レベル:',
     check:'確認', next:'次へ ➜', hint:'ヒント 💡', reset:'↺',
     readTask:()=>'何時ですか？', readSub:()=>'正しい時刻を選んでください。',
-    setTask:(h,m)=>`${fmtTime(h,m,'ja')}に合わせてください`, setSub:()=>'青いハンドル（時）と灰色のハンドル（分）をドラッグ。',
+    setTask:(h,m)=>`${fmtTime(h,m,'ja')}に合わせてください`, setSub:()=>'スライダーか針をドラッグしてください。',
     textSetTask:()=>'針を正しく合わせてください！', textSetSub:()=>'テキストを読んで時計を合わせてください。',
     wordTask:()=>'正しい順番は？', wordSub:()=>'正しい順番で言葉をタップしてください。',
     wordBankLabel:'使える言葉：', wordAnswerLabel:'あなたの答え：',
     settingsTitle:'設定', timerLabel:'タイマー', speechLabel:'読み上げ',
     soundLabel:'サウンド', langLabel:'言語', resetLabel:'進捗をリセット',
     timerOpts:['なし','5秒','10秒','15秒'], badgesTitle:'バッジ',
-    dailyText:'今日の課題：', on:'オン', off:'オフ',
-    pathLabel:'学習パス',
+    dailyText:'今日の課題：', on:'オン', off:'オフ', pathLabel:'学習パス',
+    sliderHours:'時', sliderMinutes:'分',
     fb:{ correct:'よくできました！🌟', wrong:'惜しい！もう一度。', hint:'短い針が時、長い針が分です。' }
   }
 };

@@ -61,7 +61,7 @@ function randTime(diff) {
   const mins = DIFFS[diff].minutes;
   if (currentProfile && currentProfile.weights) {
     const pool = [];
-    for (let h = 1; h <= 12; h++) {
+    for (let h = 0; h <= 23; h++) {
       for (const m of mins) {
         const key = `${h}:${m}`;
         const w = currentProfile.weights[key];
@@ -71,7 +71,7 @@ function randTime(diff) {
     }
     return pool[Math.floor(Math.random() * pool.length)];
   }
-  return { h: Math.floor(Math.random()*12)+1, m: mins[Math.floor(Math.random()*mins.length)] };
+  return { h: Math.floor(Math.random()*24), m: mins[Math.floor(Math.random()*mins.length)] };
 }
 
 function wrongAnswers(h, m, lang, diff) {
@@ -81,7 +81,7 @@ function wrongAnswers(h, m, lang, diff) {
   for (let dh = -3; dh <= 3; dh++) {
     for (const dm of mins) {
       if (dh===0 && dm===m) continue;
-      const wh = ((h-1+dh+12)%12)+1;
+      const wh = (h + dh + 24) % 24;
       const txt = fmtTime(wh, dm, lang);
       if (txt !== correct) pool.push(txt);
     }
@@ -91,28 +91,89 @@ function wrongAnswers(h, m, lang, diff) {
 
 // ── Wrong answer explanation ──────────────────────────────────────
 function wrongExplanation(h, m, uH, uM, lang) {
-  const h12 = h%12===0?12:h%12;
-  const uH12 = uH%12===0?12:uH%12;
+  const h12v = h % 12 === 0 ? 12 : h % 12;
+  const uH12v = uH % 12 === 0 ? 12 : uH % 12;
+  const hDisp = lang === 'de' ? (NUM_DE[h]||h) : lang === 'it' ? (NUM_IT[h]||h) : lang === 'en' ? (NUM_EN[h12v]||h) : h;
+  const uHDisp = lang === 'de' ? (NUM_DE[uH]||uH) : lang === 'it' ? (NUM_IT[uH]||uH) : lang === 'en' ? (NUM_EN[uH12v]||uH) : uH;
   if (lang === 'de') {
-    if (uH12 !== h12 && uM !== m) return `Der kurze Zeiger zeigt auf ${h12}, der lange auf ${m === 0 ? '12 (= 0 Min.)' : m+' Min.'}.`;
-    if (uH12 !== h12) return `Der kurze Zeiger (Stunden) zeigt auf ${h12}, nicht auf ${uH12}.`;
+    if (uH%12 !== h%12 && uM !== m) return `Der kurze Zeiger zeigt auf ${hDisp}, der lange auf ${m} Min.`;
+    if (uH%12 !== h%12) return `Der kurze Zeiger (Stunden) zeigt auf ${hDisp}, nicht auf ${uHDisp}.`;
     if (uM !== m) return `Der lange Zeiger (Minuten) zeigt auf ${m} Min., nicht auf ${uM} Min.`;
   }
   if (lang === 'it') {
-    if (uH12 !== h12 && uM !== m) return `La lancetta corta indica ${h12}, quella lunga ${m} min.`;
-    if (uH12 !== h12) return `La lancetta corta (ore) indica ${h12}, non ${uH12}.`;
+    if (uH%12 !== h%12 && uM !== m) return `La lancetta corta indica ${hDisp}, quella lunga ${m} min.`;
+    if (uH%12 !== h%12) return `La lancetta corta (ore) indica ${hDisp}, non ${uHDisp}.`;
     if (uM !== m) return `La lancetta lunga (minuti) indica ${m} min., non ${uM} min.`;
   }
   if (lang === 'en') {
-    if (uH12 !== h12 && uM !== m) return `Short hand → ${h12}, long hand → ${m} min.`;
-    if (uH12 !== h12) return `Short hand (hours) points to ${h12}, not ${uH12}.`;
+    if (uH%12 !== h%12 && uM !== m) return `Short hand → ${hDisp}, long hand → ${m} min.`;
+    if (uH%12 !== h%12) return `Short hand (hours) points to ${hDisp}, not ${uHDisp}.`;
     if (uM !== m) return `Long hand (minutes) points to ${m} min., not ${uM} min.`;
   }
   if (lang === 'ja') {
-    if (uH12 !== h12) return `短い針は${h12}を指します（${uH12}ではありません）。`;
+    if (uH%12 !== h%12) return `短い針は${h}を指します（${uH}ではありません）。`;
     if (uM !== m) return `長い針は${m}分を指します（${uM}分ではありません）。`;
   }
   return LANGS[lang].fb.wrong;
+}
+
+// ── Sliders for set mode (touch-friendly alternative) ─────────────
+function buildSliders(L, diff, onUpdate) {
+  const wrap = document.createElement('div');
+  wrap.id = 'sliders-wrap';
+  wrap.style.cssText = 'margin-bottom:.875rem;display:flex;flex-direction:column;gap:10px;';
+
+  const mins = DIFFS[diff].minutes;
+
+  function makeSlider(labelTxt, min, max, val, step, onChange) {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:10px;';
+    const lbl = document.createElement('label');
+    lbl.style.cssText = 'font-size:12px;color:var(--muted);min-width:56px;font-weight:500;';
+    lbl.textContent = labelTxt;
+    const slider = document.createElement('input');
+    slider.type = 'range'; slider.min = min; slider.max = max; slider.value = val; slider.step = step;
+    slider.style.cssText = 'flex:1;';
+    const valLbl = document.createElement('span');
+    valLbl.style.cssText = 'font-size:14px;font-weight:700;color:var(--primary);min-width:28px;text-align:right;';
+    valLbl.textContent = val;
+    slider.oninput = ()=>{ valLbl.textContent = slider.value; onChange(parseInt(slider.value)); };
+    // Prevent drag from reaching clock SVG
+    slider.ontouchstart = (e)=>e.stopPropagation();
+    row.appendChild(lbl); row.appendChild(slider); row.appendChild(valLbl);
+    return { row, slider, valLbl };
+  }
+
+  const hSlider = makeSlider(L.sliderHours, 0, 23, G.uH, 1, (v)=>{
+    G.uH = v;
+    Clock.draw(document.getElementById('clock-svg'), G.uH, G.uM, true, null);
+    updateLiveLabel();
+    Audio.play('drag');
+  });
+  const mSlider = makeSlider(L.sliderMinutes, 0, 55, G.uM, mins.length > 2 ? 5 : 30, (v)=>{
+    // Snap to nearest valid minute
+    let best = mins[0], bd = 999;
+    for (const m of mins) { const d = Math.abs(v-m); if(d<bd){bd=d;best=m;} }
+    G.uM = best;
+    mSlider.slider.value = best;
+    mSlider.valLbl.textContent = best;
+    Clock.draw(document.getElementById('clock-svg'), G.uH, G.uM, true, null);
+    updateLiveLabel();
+    Audio.play('drag');
+  });
+
+  wrap.appendChild(hSlider.row);
+  wrap.appendChild(mSlider.row);
+  return wrap;
+}
+
+function insertSliders(L, diff) {
+  // Remove old sliders if any
+  const old = document.getElementById('sliders-wrap');
+  if (old) old.remove();
+  const fb = document.getElementById('feedback');
+  const sliders = buildSliders(L, diff, ()=>{});
+  fb.parentNode.insertBefore(sliders, fb);
 }
 
 // ── Confetti ──────────────────────────────────────────────────────
@@ -570,7 +631,7 @@ function setupDrag() {
 
 // ── Hide helpers ──────────────────────────────────────────────────
 function hideAll() {
-  ['answer-grid','text-task-box','word-area'].forEach(id=>document.getElementById(id).style.display='none');
+  ['answer-grid','text-task-box','word-area','sliders-wrap'].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display='none'; });
   removeLiveLabel();
   teardownDrag();
 }
@@ -634,10 +695,11 @@ function renderTask() {
     document.getElementById('task-text').textContent = L.setTask(G.tH, G.tM);
     document.getElementById('task-sub').textContent = L.setSub();
     document.getElementById('clock-wrap').style.display = 'flex';
-    G.uH = ((G.tH+3)%12)||12; G.uM = 0;
+    G.uH = (G.tH + 6) % 24; G.uM = 0;
     Clock.draw(document.getElementById('clock-svg'), G.uH, G.uM, true, null);
     updateLiveLabel();
     setupDrag();
+    insertSliders(L, G.diff);
     addHintAndCheck(btnRow, L, ()=>{
       const ok = G.uH%12===G.tH%12 && G.uM===G.tM;
       if (!ok) {
@@ -657,11 +719,12 @@ function renderTask() {
     document.getElementById('clock-wrap').style.display = 'flex';
     const tb = document.getElementById('text-task-box'); tb.style.display='block';
     document.getElementById('text-task-main').textContent = fmtTime(G.tH, G.tM, settings.lang);
-    Audio.speak(fmtTime(G.tH, G.tM, settings.lang), settings.lang); // ok — text is visible anyway
-    G.uH = ((G.tH+4)%12)||12; G.uM = 0;
+    Audio.speak(fmtTime(G.tH, G.tM, settings.lang), settings.lang);
+    G.uH = (G.tH + 5) % 24; G.uM = 0;
     Clock.draw(document.getElementById('clock-svg'), G.uH, G.uM, true, null);
     updateLiveLabel();
     setupDrag();
+    insertSliders(L, G.diff);
     addHintAndCheck(btnRow, L, ()=>{
       const ok = G.uH%12===G.tH%12 && G.uM===G.tM;
       if (!ok) {
