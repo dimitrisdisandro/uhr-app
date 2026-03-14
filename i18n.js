@@ -25,14 +25,16 @@ const NUM_DE_HALB = ['null','eins','zwei','drei','vier','fünf','sechs','sieben'
 // Italienisch verwendet immer 12h-Zahlen (1–12)
 const NUM_IT_12 = ['dodici','una','due','tre','quattro','cinque','sei','sette','otto','nove','dieci','undici','dodici'];
 
+function h12(h) { return h % 12 === 0 ? 12 : h % 12; }
+function nextH12(h) { return h12(h) % 12 + 1; }
+// For 24h: next hour wraps at 24
+function nextH24(h) { return (h + 1) % 24; }
+
 // Italienisch: korrekte Stundenform mit Artikel für "meno"-Ausdrücke
 function itNextHour(next12) {
   if (next12 === 1) return "l'una";
   return 'le ' + NUM_IT_12[next12];
 }
-function nextH12(h) { return h12(h) % 12 + 1; }
-// For 24h: next hour wraps at 24
-function nextH24(h) { return (h + 1) % 24; }
 
 function fmtTime(h, m, lang) {
   const h12v = h12(h);  // always 1–12
