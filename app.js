@@ -367,16 +367,16 @@ function renderProfileScreen() {
     aboutProfile.style.cssText = 'margin-top:1.5rem;padding-top:1.25rem;border-top:1px solid var(--border);';
     document.querySelector('.profile-wrap').appendChild(aboutProfile);
   }
-  const L = LANGS[settings.lang];
   aboutProfile.innerHTML = '';
-  const aboutTitle = document.createElement('div');
-  aboutTitle.style.cssText = 'font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.75rem;';
-  aboutTitle.textContent = L.aboutTitle;
-  const aboutText = document.createElement('p');
-  aboutText.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.7;white-space:pre-line;';
-  aboutText.textContent = L.aboutText;
-  aboutProfile.appendChild(aboutTitle);
-  aboutProfile.appendChild(aboutText);
+  const Lp = LANGS[settings.lang];
+  const aboutTitleEl = document.createElement('div');
+  aboutTitleEl.style.cssText = 'font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.75rem;';
+  aboutTitleEl.textContent = Lp.aboutTitle;
+  const aboutTextEl = document.createElement('p');
+  aboutTextEl.style.cssText = 'font-size:12px;color:var(--muted);line-height:1.7;white-space:pre-line;';
+  aboutTextEl.textContent = Lp.aboutText;
+  aboutProfile.appendChild(aboutTitleEl);
+  aboutProfile.appendChild(aboutTextEl);
 }
 
 function renderLangBarProfile() {
