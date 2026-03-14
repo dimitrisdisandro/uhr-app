@@ -15,7 +15,17 @@
 <body>
 <div id="celebrate"></div>
 
-<!-- DISCLAIMER (shown once on first visit) -->
+<!-- NUMBER EXERCISE POPUP -->
+<div id="num-popup-overlay" class="hidden">
+  <div id="num-popup-box">
+    <div id="num-popup-title"></div>
+    <div id="num-popup-sub"></div>
+    <div id="num-popup-number"></div>
+    <input id="num-popup-input" type="text" autocomplete="off" autocorrect="off" spellcheck="false">
+    <div id="num-popup-feedback" class="fb-neutral"></div>
+    <div id="num-popup-btns"></div>
+  </div>
+</div>
 <div id="disclaimer-overlay">
   <div id="disclaimer-box">
     <div id="disclaimer-icon">⏰</div>
@@ -91,6 +101,13 @@
     <div id="badges-section">
       <div class="section-title" id="lbl-badges">Abzeichen</div>
       <div id="badges-grid"></div>
+    </div>
+
+    <!-- Zahlen Statistik -->
+    <div id="num-stats-section" style="display:none">
+      <div class="section-title" id="lbl-num-stats">Zahlen-Statistik</div>
+      <div id="num-stats-total" style="font-size:13px;color:var(--muted);margin-bottom:.5rem;"></div>
+      <div class="num-stats-grid" id="num-stats-grid"></div>
     </div>
   </div>
 </div>

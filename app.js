@@ -227,7 +227,113 @@ function withUhr(timeStr, lang) {
   return timeStr.endsWith(' Uhr') ? timeStr : timeStr + ' Uhr';
 }
 
-// ── Confetti ──────────────────────────────────────────────────────
+// ── Number exercise ───────────────────────────────────────────────
+let numExerciseCounter = 0; // counts clock tasks since last number popup
+
+function getNumStats() {
+  if (!currentProfile) return { total:0, correct:0, perNum:{} };
+  currentProfile.numStats = currentProfile.numStats || { total:0, correct:0, perNum:{} };
+  return currentProfile.numStats;
+}
+
+function randNum() {
+  return Math.floor(Math.random() * 25); // 0–24
+}
+
+function showNumPopup() {
+  const L = LANGS[settings.lang];
+  const n = randNum();
+  const overlay = document.getElementById('num-popup-overlay');
+  const fb = document.getElementById('num-popup-feedback');
+  const inp = document.getElementById('num-popup-input');
+  const btns = document.getElementById('num-popup-btns');
+
+  document.getElementById('num-popup-title').textContent = L.numPopupTitle;
+  document.getElementById('num-popup-sub').textContent = L.numPopupSub;
+  document.getElementById('num-popup-number').textContent = n;
+  inp.value = ''; inp.placeholder = L.numPlaceholder;
+  fb.className = 'fb-neutral'; fb.textContent = '';
+  btns.innerHTML = '';
+  overlay.classList.remove('hidden');
+
+  let answered = false;
+
+  const checkBtn = document.createElement('button');
+  checkBtn.className = 'btn btn-primary'; checkBtn.textContent = L.check;
+  checkBtn.style.flex = '1';
+
+  function checkAnswer() {
+    if (answered) return;
+    const val = inp.value.trim().toLowerCase();
+    const correct = (NUM_WORDS[settings.lang]||NUM_WORDS.de)[n].toLowerCase();
+    if (!val) { inp.focus(); return; }
+    answered = true;
+    Audio.play('tick');
+    const ok = val === correct;
+    const ns = getNumStats();
+    ns.total = (ns.total||0) + 1;
+    if (!ns.perNum[n]) ns.perNum[n] = { total:0, correct:0 };
+    ns.perNum[n].total++;
+    if (ok) {
+      Audio.play('correct');
+      ns.correct = (ns.correct||0) + 1;
+      ns.perNum[n].correct++;
+      fb.className = 'fb-success'; fb.textContent = L.fb.correct;
+      Audio.speak(correct, settings.lang);
+    } else {
+      Audio.play('wrong');
+      fb.className = 'fb-error';
+      const phrases = {
+        de: `Falsch. Die richtige Antwort ist: ${correct}`,
+        it: `Sbagliato. La risposta corretta è: ${correct}`,
+        en: `Wrong. The correct answer is: ${correct}`,
+        ja: `不正解。正しい答えは：${correct}`
+      };
+      fb.textContent = phrases[settings.lang] || phrases.de;
+      Audio.speak(phrases[settings.lang] || phrases.de, settings.lang);
+    }
+    saveCurrentProfile();
+    renderNumStats();
+    btns.innerHTML = '';
+    const nextBtn = document.createElement('button');
+    nextBtn.className = 'btn btn-primary'; nextBtn.textContent = L.next;
+    nextBtn.style.flex = '1';
+    nextBtn.onclick = ()=>{ overlay.classList.add('hidden'); };
+    btns.appendChild(nextBtn);
+  }
+
+  checkBtn.onclick = checkAnswer;
+  inp.onkeydown = (e)=>{ if(e.key==='Enter') checkAnswer(); };
+  btns.appendChild(checkBtn);
+
+  setTimeout(()=>inp.focus(), 100);
+}
+
+function renderNumStats() {
+  const L = LANGS[settings.lang];
+  const ns = getNumStats();
+  const sec = document.getElementById('num-stats-section');
+  const grid = document.getElementById('num-stats-grid');
+  const totalEl = document.getElementById('num-stats-total');
+  const lbl = document.getElementById('lbl-num-stats');
+
+  if (ns.total === 0) { sec.style.display='none'; return; }
+  sec.style.display = 'block';
+  lbl.textContent = L.numStatsTitle;
+  const pct = Math.round(ns.correct/ns.total*100);
+  totalEl.textContent = `${L.numStatsTotal}: ${ns.correct}/${ns.total} ✓ (${pct}%)`;
+
+  grid.innerHTML = '';
+  for (let n = 0; n <= 24; n++) {
+    const s = ns.perNum[n] || { total:0, correct:0 };
+    const p = s.total > 0 ? Math.round(s.correct/s.total*100) : null;
+    const color = p === null ? 'var(--muted)' : p >= 80 ? 'var(--success)' : p >= 50 ? 'var(--warm)' : 'var(--danger)';
+    const cell = document.createElement('div'); cell.className = 'num-stat-cell';
+    cell.innerHTML = `<div class="num-stat-n" style="color:${color}">${n}</div>
+      <div class="num-stat-s">${s.total>0?s.correct+'/'+s.total:'—'}</div>`;
+    grid.appendChild(cell);
+  }
+}
 function launchConfetti() {
   const cel = document.getElementById('celebrate');
   cel.style.display = 'block'; cel.innerHTML = '';
@@ -478,7 +584,7 @@ function renderProfileList() {
     });
     table.appendChild(thead);
 
-    // Data rows
+    // Data rows — clock modes
     [0,1,2,3].forEach(modeIdx=>{
       const tr = document.createElement('tr');
       tr.innerHTML = `<td style="padding:4px 6px;color:var(--text);font-weight:500;border-bottom:1px solid var(--border);white-space:nowrap;">${modeNames[modeIdx]}</td>`;
@@ -494,6 +600,18 @@ function renderProfileList() {
       });
       table.appendChild(tr);
     });
+    // Number exercise row (language-independent)
+    const ns = p.numStats || { total:0, correct:0 };
+    const nsPct = ns.total > 0 ? Math.round(ns.correct/ns.total*100) : null;
+    const nsColor = nsPct === null ? 'var(--muted)' : nsPct >= 80 ? 'var(--success)' : nsPct >= 50 ? 'var(--warm)' : 'var(--danger)';
+    const numTr = document.createElement('tr');
+    numTr.innerHTML = `<td style="padding:4px 6px;color:var(--text);font-weight:500;white-space:nowrap;">🔢 ${LANGS[settings.lang].numMode}</td>`;
+    // Span all language columns with combined stats
+    numTr.innerHTML += `<td colspan="4" style="text-align:center;padding:4px 4px;">
+      <span style="font-weight:600;color:${nsColor}">${ns.total>0?ns.correct+'/'+ns.total:'—'}</span>
+      ${nsPct!==null?`<br><span style="color:var(--muted);font-size:10px">${nsPct}%</span>`:''}
+    </td>`;
+    table.appendChild(numTr);
     modeTable.appendChild(table);
 
     modeToggle.onclick = (e)=>{
@@ -562,6 +680,7 @@ function selectProfile(idx) {
   // Init per-language structures
   currentProfile.langStats   = currentProfile.langStats   || {};
   currentProfile.langWeights = currentProfile.langWeights || {};
+  currentProfile.numStats    = currentProfile.numStats    || { total:0, correct:0, perNum:{} };
   // Reset session counters each login
   currentProfile.langSession = {};
   G.mode = currentProfile.lastMode || 0;
@@ -582,6 +701,7 @@ function renderApp() {
   renderDailyBanner();
   Badges.render(currentProfile.earned, settings.lang);
   document.getElementById('lbl-badges').textContent = L.badgesTitle;
+  renderNumStats();
   newTask();
   renderTask();
 }
@@ -710,7 +830,7 @@ function renderSettingsScreen() {
       currentProfile.stats={totalAll:0,correctAll:0,bestStreak:0,perfectRun:0,dailyStreak:0,lastDay:'',modesUsed:[],langsUsed:[]};
       currentProfile.earned=[]; currentProfile.weights={};
       currentProfile.langStats={}; currentProfile.langWeights={}; currentProfile.langSession={};
-      currentProfile.modeStats={};
+      currentProfile.modeStats={}; currentProfile.numStats={ total:0, correct:0, perNum:{} };
       saveCurrentProfile(); showScreen('app'); renderApp();
     }
   };
@@ -1058,7 +1178,19 @@ function handleResult(ok, L) {
 
 function addNextBtn(btnRow, L) {
   const b=document.createElement('button'); b.className='btn btn-primary'; b.textContent=L.next;
-  b.onclick=()=>{ Audio.play('tick'); newTask(); animateTransition(renderTask); };
+  b.onclick=()=>{
+    Audio.play('tick');
+    numExerciseCounter++;
+    if (numExerciseCounter >= 5) {
+      numExerciseCounter = 0;
+      newTask();
+      animateTransition(renderTask);
+      setTimeout(()=>showNumPopup(), 400);
+    } else {
+      newTask();
+      animateTransition(renderTask);
+    }
+  };
   btnRow.appendChild(b);
 }
 

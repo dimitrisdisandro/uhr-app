@@ -173,7 +173,40 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .lang-btn { padding: 6px 12px; border-radius: 18px; border: 1.5px solid var(--border); background: var(--card); cursor: pointer; font-size: 12px; color: var(--muted); font-weight: 500; transition: all .15s; }
 .lang-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
 
-/* Disclaimer overlay */
+/* Number exercise popup */
+#num-popup-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.55); z-index: 1500;
+  display: flex; align-items: center; justify-content: center; padding: 1.5rem;
+}
+#num-popup-overlay.hidden { display: none; }
+#num-popup-box {
+  background: var(--card); border-radius: var(--radius);
+  padding: 1.75rem 1.5rem; max-width: 360px; width: 100%;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+#num-popup-title { font-size: 18px; font-weight: 700; color: var(--primary); margin-bottom: 6px; }
+#num-popup-sub { font-size: 13px; color: var(--muted); margin-bottom: 1.25rem; }
+#num-popup-number {
+  font-size: 56px; font-weight: 700; color: var(--text);
+  text-align: center; margin-bottom: 1.25rem;
+  background: var(--surface); border-radius: var(--radius); padding: .75rem;
+}
+#num-popup-input {
+  width: 100%; padding: 11px 14px; border: 1.5px solid var(--border);
+  border-radius: var(--radius-sm); font-size: 16px; margin-bottom: .875rem;
+  outline: none; background: var(--card); color: var(--text);
+}
+#num-popup-input:focus { border-color: var(--primary); }
+#num-popup-feedback { margin-bottom: .875rem; border-radius: var(--radius-sm); padding: 9px 14px; font-size: 13px; font-weight: 600; text-align: center; min-height: 40px; display: flex; align-items: center; justify-content: center; }
+#num-popup-btns { display: flex; gap: 8px; }
+
+/* Number stats table */
+#num-stats-section { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem 1.25rem; margin-top: 1rem; }
+.num-stats-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: .75rem; }
+.num-stat-cell { background: var(--surface); border-radius: var(--radius-sm); padding: 6px 4px; text-align: center; }
+.num-stat-n { font-size: 16px; font-weight: 700; color: var(--text); }
+.num-stat-s { font-size: 10px; color: var(--muted); margin-top: 2px; }
 #disclaimer-overlay {
   position: fixed; top: 0; left: 0; width: 100%; height: 100%;
   background: rgba(0,0,0,0.55); z-index: 2000;
