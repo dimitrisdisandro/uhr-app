@@ -163,6 +163,7 @@ const LANGS = {
     timerOpts:['Aus','5s','10s','15s'], badgesTitle:'Abzeichen',
     dailyText:'Tagesaufgabe:', on:'EIN', off:'AUS', pathLabel:'Lernpfad',
     sliderHours:'Stunden', sliderMinutes:'Minuten',
+    modeDetails:'Details pro Modus',
     fb:{ correct:'Super gemacht! 🌟', wrong:'Fast! Versuch es nochmal.', hint:'Kurzer Zeiger = Stunden, langer Zeiger = Minuten.' }
   },
   it: {
@@ -183,6 +184,7 @@ const LANGS = {
     timerOpts:['No','5s','10s','15s'], badgesTitle:'Medaglie',
     dailyText:'Compito del giorno:', on:'SÌ', off:'NO', pathLabel:'Percorso',
     sliderHours:'Ore', sliderMinutes:'Minuti',
+    modeDetails:'Dettagli per modalità',
     fb:{ correct:'Bravo! 🌟', wrong:'Quasi! Riprova.', hint:'Lancetta corta = ore, lunga = minuti.' }
   },
   en: {
@@ -203,6 +205,7 @@ const LANGS = {
     timerOpts:['Off','5s','10s','15s'], badgesTitle:'Badges',
     dailyText:'Daily task:', on:'ON', off:'OFF', pathLabel:'Learning path',
     sliderHours:'Hours', sliderMinutes:'Minutes',
+    modeDetails:'Details per mode',
     fb:{ correct:'Well done! 🌟', wrong:'Almost! Try again.', hint:'Short hand = hours, long hand = minutes.' }
   },
   ja: {
@@ -223,6 +226,7 @@ const LANGS = {
     timerOpts:['なし','5秒','10秒','15秒'], badgesTitle:'バッジ',
     dailyText:'今日の課題：', on:'オン', off:'オフ', pathLabel:'学習パス',
     sliderHours:'時', sliderMinutes:'分',
+    modeDetails:'モード別詳細',
     fb:{ correct:'よくできました！🌟', wrong:'惜しい！もう一度。', hint:'短い針が時、長い針が分です。' }
   }
 };

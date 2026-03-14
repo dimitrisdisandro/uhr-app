@@ -437,17 +437,18 @@ function renderProfileList() {
       langRow.appendChild(cell);
     });
 
+    const L = LANGS[settings.lang];
     // Mode stats toggle
     const modeToggle = document.createElement('button');
     modeToggle.style.cssText = 'background:none;border:none;cursor:pointer;font-size:12px;color:var(--primary);font-weight:600;text-align:left;padding:0;';
-    modeToggle.textContent = '▶ Details pro Modus';
+    modeToggle.textContent = '▶ ' + L.modeDetails;
 
     const modeTable = document.createElement('div');
     modeTable.style.display = 'none';
     modeTable.style.cssText = 'display:none;overflow-x:auto;';
 
     // Build table: rows = modes, cols = languages
-    const modeNames = LANGS['de'].modes; // always use DE mode names as row headers
+    const modeNames = L.modes;
     const table = document.createElement('table');
     table.style.cssText = 'width:100%;border-collapse:collapse;font-size:11px;';
 
@@ -481,7 +482,7 @@ function renderProfileList() {
       e.stopPropagation();
       const open = modeTable.style.display !== 'none';
       modeTable.style.display = open ? 'none' : 'block';
-      modeToggle.textContent = (open ? '▶' : '▼') + ' Details pro Modus';
+      modeToggle.textContent = (open ? '▶' : '▼') + ' ' + L.modeDetails;
     };
 
     card.appendChild(topRow);
