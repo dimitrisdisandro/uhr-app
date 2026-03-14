@@ -243,6 +243,7 @@ function randNum() {
 function showNumPopup() {
   const L = LANGS[settings.lang];
   const n = randNum();
+  const correct = (NUM_WORDS[settings.lang]||NUM_WORDS.de)[n].toLowerCase();
   const overlay = document.getElementById('num-popup-overlay');
   const fb = document.getElementById('num-popup-feedback');
   const inp = document.getElementById('num-popup-input');
@@ -256,44 +257,34 @@ function showNumPopup() {
   btns.innerHTML = '';
   overlay.classList.remove('hidden');
 
-  let answered = false;
+  const MAX_TRIES = 3;
+  let attempt = 0;    // how many attempts used so far
+  let firstTry = true; // is this the first attempt?
 
-  const checkBtn = document.createElement('button');
-  checkBtn.className = 'btn btn-primary'; checkBtn.textContent = L.check;
-  checkBtn.style.flex = '1';
+  // Init stats for this number
+  const ns = getNumStats();
+  ns.total = (ns.total||0) + 1;
+  if (!ns.perNum[n]) ns.perNum[n] = { total:0, correct1:0, correct2:0, correct3:0, failed:0 };
+  ns.perNum[n].total++;
 
-  function checkAnswer() {
-    if (answered) return;
-    const val = inp.value.trim().toLowerCase();
-    const correct = (NUM_WORDS[settings.lang]||NUM_WORDS.de)[n].toLowerCase();
-    if (!val) { inp.focus(); return; }
-    answered = true;
-    Audio.play('tick');
-    const ok = val === correct;
-    const ns = getNumStats();
-    ns.total = (ns.total||0) + 1;
-    if (!ns.perNum[n]) ns.perNum[n] = { total:0, correct:0 };
-    ns.perNum[n].total++;
-    if (ok) {
-      Audio.play('correct');
-      ns.correct = (ns.correct||0) + 1;
-      ns.perNum[n].correct++;
-      fb.className = 'fb-success'; fb.textContent = L.fb.correct;
-      Audio.speak(correct, settings.lang);
-    } else {
-      Audio.play('wrong');
-      fb.className = 'fb-error';
-      const phrases = {
-        de: `Falsch. Die richtige Antwort ist: ${correct}`,
-        it: `Sbagliato. La risposta corretta è: ${correct}`,
-        en: `Wrong. The correct answer is: ${correct}`,
-        ja: `不正解。正しい答えは：${correct}`
-      };
-      fb.textContent = phrases[settings.lang] || phrases.de;
-      Audio.speak(phrases[settings.lang] || phrases.de, settings.lang);
-    }
-    saveCurrentProfile();
-    renderNumStats();
+  const retryMessages = {
+    de: ['Noch nicht ganz — schreib es nochmal!', 'Fast! Ein letzter Versuch.'],
+    it: ['Non ancora — riscrivilo!', 'Quasi! Un ultimo tentativo.'],
+    en: ['Not quite — write it again!', 'Almost! One last try.'],
+    ja: ['もう少し — もう一度書いてみて！', 'あと少し！最後の挑戦。']
+  };
+
+  function buildCheckBtn() {
+    btns.innerHTML = '';
+    const checkBtn = document.createElement('button');
+    checkBtn.className = 'btn btn-primary'; checkBtn.textContent = L.check;
+    checkBtn.style.flex = '1';
+    checkBtn.onclick = checkAnswer;
+    inp.onkeydown = (e)=>{ if(e.key==='Enter') checkAnswer(); };
+    btns.appendChild(checkBtn);
+  }
+
+  function buildNextBtn() {
     btns.innerHTML = '';
     const nextBtn = document.createElement('button');
     nextBtn.className = 'btn btn-primary'; nextBtn.textContent = L.next;
@@ -302,10 +293,65 @@ function showNumPopup() {
     btns.appendChild(nextBtn);
   }
 
-  checkBtn.onclick = checkAnswer;
-  inp.onkeydown = (e)=>{ if(e.key==='Enter') checkAnswer(); };
-  btns.appendChild(checkBtn);
+  function checkAnswer() {
+    const val = inp.value.trim().toLowerCase();
+    if (!val) { inp.focus(); return; }
+    attempt++;
+    Audio.play('tick');
 
+    if (val === correct) {
+      // Correct!
+      Audio.play('correct');
+      if (firstTry) {
+        ns.correct = (ns.correct||0) + 1;
+        ns.perNum[n][`correct${attempt}`]++;
+      } else {
+        // Correct on retry — count as retry success
+        ns.perNum[n][`correct${attempt}`]++;
+      }
+      fb.className = 'fb-success';
+      fb.textContent = L.fb.correct + (attempt > 1 ? ` (${attempt}. Versuch)` : '');
+      Audio.speak(correct, settings.lang);
+      saveCurrentProfile(); renderNumStats();
+      inp.disabled = true;
+      buildNextBtn();
+    } else {
+      // Wrong
+      Audio.play('wrong');
+      if (attempt >= MAX_TRIES) {
+        // Out of tries
+        ns.perNum[n].failed++;
+        const phrases = {
+          de: `Nicht geschafft. Die richtige Antwort ist: ${correct}`,
+          it: `Non ce l'hai fatta. La risposta corretta è: ${correct}`,
+          en: `Not managed. The correct answer is: ${correct}`,
+          ja: `残念。正しい答えは：${correct}`
+        };
+        fb.className = 'fb-error'; fb.textContent = phrases[settings.lang]||phrases.de;
+        Audio.speak(phrases[settings.lang]||phrases.de, settings.lang);
+        saveCurrentProfile(); renderNumStats();
+        inp.disabled = true;
+        buildNextBtn();
+      } else {
+        // Still tries left — show correct answer, ask to retype
+        firstTry = false;
+        const msgs = retryMessages[settings.lang]||retryMessages.de;
+        const attemptsLeft = MAX_TRIES - attempt;
+        fb.className = 'fb-error';
+        fb.textContent = msgs[attempt-1] || msgs[msgs.length-1];
+        // Show correct answer in subtitle as hint
+        document.getElementById('num-popup-sub').textContent =
+          `✏️ ${correct} — ${attemptsLeft === 1 ?
+            {de:'noch 1 Versuch',it:'ancora 1 tentativo',en:'1 try left',ja:'あと1回'}[settings.lang]||'1 try left' :
+            {de:`noch ${attemptsLeft} Versuche`,it:`ancora ${attemptsLeft} tentativi`,en:`${attemptsLeft} tries left`,ja:`あと${attemptsLeft}回`}[settings.lang]||`${attemptsLeft} tries left`
+          }`;
+        inp.value = ''; inp.focus();
+        buildCheckBtn();
+      }
+    }
+  }
+
+  buildCheckBtn();
   setTimeout(()=>inp.focus(), 100);
 }
 
@@ -320,17 +366,32 @@ function renderNumStats() {
   if (ns.total === 0) { sec.style.display='none'; return; }
   sec.style.display = 'block';
   lbl.textContent = L.numStatsTitle;
-  const pct = Math.round(ns.correct/ns.total*100);
-  totalEl.textContent = `${L.numStatsTotal}: ${ns.correct}/${ns.total} ✓ (${pct}%)`;
+
+  // Total summary
+  const c1 = Object.values(ns.perNum||{}).reduce((s,v)=>s+(v.correct1||0),0);
+  const c2 = Object.values(ns.perNum||{}).reduce((s,v)=>s+(v.correct2||0),0);
+  const c3 = Object.values(ns.perNum||{}).reduce((s,v)=>s+(v.correct3||0),0);
+  const fail = Object.values(ns.perNum||{}).reduce((s,v)=>s+(v.failed||0),0);
+  totalEl.innerHTML = `${L.numStatsTotal}: ${ns.total} &nbsp;|&nbsp; 🟢 ${c1} &nbsp; 🟡 ${c2} &nbsp; 🟠 ${c3} &nbsp; 🔴 ${fail}`;
 
   grid.innerHTML = '';
   for (let n = 0; n <= 24; n++) {
-    const s = ns.perNum[n] || { total:0, correct:0 };
-    const p = s.total > 0 ? Math.round(s.correct/s.total*100) : null;
-    const color = p === null ? 'var(--muted)' : p >= 80 ? 'var(--success)' : p >= 50 ? 'var(--warm)' : 'var(--danger)';
+    const s = ns.perNum[n] || { total:0 };
+    const c1n = s.correct1||0, c2n = s.correct2||0, c3n = s.correct3||0, fn = s.failed||0;
+    const tried = s.total || 0;
+    // Color: green if mostly correct1, yellow if correct2/3, red if failed
+    let dot = '—';
+    let bg = 'var(--surface)';
+    if (tried > 0) {
+      if (c1n > 0) { dot = '🟢'; bg = 'var(--success-light)'; }
+      else if (c2n > 0 || c3n > 0) { dot = '🟡'; bg = 'var(--warm-light)'; }
+      else { dot = '🔴'; bg = 'var(--danger-light)'; }
+    }
     const cell = document.createElement('div'); cell.className = 'num-stat-cell';
-    cell.innerHTML = `<div class="num-stat-n" style="color:${color}">${n}</div>
-      <div class="num-stat-s">${s.total>0?s.correct+'/'+s.total:'—'}</div>`;
+    cell.style.background = bg;
+    cell.innerHTML = `<div class="num-stat-n">${n}</div>
+      <div class="num-stat-s">${tried>0?tried+'×':''} ${dot}</div>`;
+    cell.title = tried > 0 ? `${n}: ${tried}× — 🟢${c1n} 🟡${c2n} 🟠${c3n} 🔴${fn}` : `${n}: noch nicht geübt`;
     grid.appendChild(cell);
   }
 }
@@ -709,11 +770,16 @@ function renderApp() {
 function renderModeTabs() {
   const L = LANGS[settings.lang];
   const mt = document.getElementById('mode-tabs'); mt.innerHTML = '';
+  mt.style.gridTemplateColumns = 'repeat(3, 1fr)';
   L.modes.forEach((m, i)=>{
     const b = document.createElement('button');
     b.className = 'mode-tab' + (i===G.mode?' active':'');
     b.textContent = m;
-    b.onclick = ()=>{ Audio.play('tick'); G.mode=i; currentProfile.lastMode=i; saveCurrentProfile(); newTask(); animateTransition(renderTask); renderModeTabs(); };
+    b.onclick = ()=>{
+      Audio.play('tick'); G.mode=i; currentProfile.lastMode=i; saveCurrentProfile();
+      if (i === 4) { renderTask(); renderModeTabs(); }
+      else { newTask(); animateTransition(renderTask); renderModeTabs(); }
+    };
     mt.appendChild(b);
   });
 }
@@ -922,6 +988,11 @@ function setupDrag() {
 // ── Hide helpers ──────────────────────────────────────────────────
 function hideAll() {
   ['answer-grid','text-task-box','word-area','sliders-wrap'].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display='none'; });
+  // Remove inline number exercise elements
+  ['num-inline-display','num-inline-input'].forEach(id=>{ const el=document.getElementById(id); if(el) el.remove(); });
+  // Also remove any stray divs/inputs added to task-card
+  document.querySelectorAll('#task-card input[type=text]').forEach(el=>el.remove());
+  document.querySelectorAll('#task-card div[style*="font-size:72px"]').forEach(el=>el.remove());
   removeLiveLabel();
   teardownDrag();
 }
@@ -935,6 +1006,8 @@ function renderTask() {
   fb.className='fb-neutral'; fb.textContent=''; btnRow.innerHTML=''; ag.innerHTML='';
   hideAll(); G.answered = false;
   stopTimer();
+
+  document.getElementById('difficulty-row').style.display = G.mode === 4 ? 'none' : 'flex';
 
   if (currentProfile.stats.modesUsed instanceof Set) currentProfile.stats.modesUsed.add(G.mode);
   if (currentProfile.stats.langsUsed instanceof Set) currentProfile.stats.langsUsed.add(settings.lang);
@@ -1092,6 +1165,94 @@ function renderTask() {
     btnRow.appendChild(clearBtn); btnRow.appendChild(checkBtn);
     startTimer();
   }
+
+  // ── MODE 4: NUMBER WRITING ──
+  if (G.mode === 4) {
+    const n = G.currentNum !== undefined ? G.currentNum : (G.currentNum = randNum());
+    const correct = (NUM_WORDS[settings.lang]||NUM_WORDS.de)[n].toLowerCase();
+    document.getElementById('task-text').textContent = L.numTask(n);
+    document.getElementById('task-sub').textContent = L.numSub();
+    document.getElementById('clock-wrap').style.display = 'none';
+
+    // Big number display
+    const numDisplay = document.createElement('div');
+    numDisplay.style.cssText = 'font-size:72px;font-weight:700;text-align:center;background:var(--surface);border-radius:var(--radius);padding:1rem;margin-bottom:1rem;color:var(--text);';
+    numDisplay.textContent = n;
+    document.getElementById('task-card').insertBefore(numDisplay, document.getElementById('feedback'));
+
+    // Input field
+    const inp = document.createElement('input');
+    inp.type='text'; inp.autocomplete='off'; inp.autocorrect='off'; inp.spellcheck=false;
+    inp.placeholder = L.numPlaceholder;
+    inp.style.cssText = 'width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:16px;margin-bottom:.875rem;outline:none;background:var(--card);color:var(--text);';
+    inp.onfocus = ()=>inp.style.borderColor='var(--primary)';
+    inp.onblur = ()=>inp.style.borderColor='var(--border)';
+    document.getElementById('task-card').insertBefore(inp, document.getElementById('feedback'));
+    setTimeout(()=>inp.focus(), 100);
+
+    const MAX_TRIES = 3;
+    let attempt = 0;
+
+    const ns = getNumStats();
+    ns.total = (ns.total||0) + 1;
+    if (!ns.perNum[n]) ns.perNum[n] = { total:0, correct1:0, correct2:0, correct3:0, failed:0 };
+    ns.perNum[n].total++;
+    let statsRecorded = false;
+
+    function checkNumAnswer() {
+      if (G.answered) return;
+      const val = inp.value.trim().toLowerCase();
+      if (!val) { inp.focus(); return; }
+      attempt++;
+      Audio.play('tick');
+      const fb = document.getElementById('feedback');
+      const ok = val === correct;
+
+      if (ok) {
+        if (!statsRecorded) {
+          statsRecorded = true;
+          ns.perNum[n][`correct${attempt}`]++;
+          if (attempt === 1) ns.correct = (ns.correct||0) + 1;
+        }
+        Audio.play('correct');
+        fb.className = 'fb-success';
+        fb.textContent = L.fb.correct + (attempt > 1 ? ` (${attempt}. Versuch)` : '');
+        Audio.speak(correct, settings.lang);
+        G.answered = true;
+        inp.disabled = true;
+        saveCurrentProfile(); renderNumStats();
+        const nb = document.createElement('button'); nb.className='btn btn-primary'; nb.textContent=L.next;
+        nb.onclick=()=>{ G.currentNum=undefined; newNumTask(); animateTransition(renderTask); };
+        btnRow.innerHTML=''; btnRow.appendChild(nb);
+      } else {
+        Audio.play('wrong');
+        if (attempt >= MAX_TRIES) {
+          if (!statsRecorded) { statsRecorded=true; ns.perNum[n].failed++; }
+          fb.className='fb-error';
+          const phrases={de:`Nicht geschafft. Richtig: ${correct}`,it:`Non ce l'hai fatta. Corretto: ${correct}`,en:`Not managed. Correct: ${correct}`,ja:`残念。正解：${correct}`};
+          fb.textContent = phrases[settings.lang]||phrases.de;
+          Audio.speak(phrases[settings.lang]||phrases.de, settings.lang);
+          G.answered = true; inp.disabled = true;
+          saveCurrentProfile(); renderNumStats();
+          const nb = document.createElement('button'); nb.className='btn btn-primary'; nb.textContent=L.next;
+          nb.onclick=()=>{ G.currentNum=undefined; newNumTask(); animateTransition(renderTask); };
+          btnRow.innerHTML=''; btnRow.appendChild(nb);
+        } else {
+          const left = MAX_TRIES - attempt;
+          const msgs={de:['Noch nicht — versuch es nochmal!','Fast! Ein letzter Versuch.'],it:['Non ancora — riprova!','Quasi! Un ultimo tentativo.'],en:['Not quite — try again!','Almost! One last try.'],ja:['もう少し！','最後の挑戦！']};
+          fb.className='fb-error';
+          fb.textContent = (msgs[settings.lang]||msgs.de)[attempt-1];
+          document.getElementById('task-sub').textContent = `✏️ ${correct} — ${left === 1 ? {de:'noch 1 Versuch',it:'ancora 1 tentativo',en:'1 try left',ja:'あと1回'}[settings.lang]||'1 try left' : {de:`noch ${left} Versuche`,it:`ancora ${left} tentativi`,en:`${left} tries left`,ja:`あと${left}回`}[settings.lang]||`${left} tries left`}`;
+          inp.value=''; inp.focus();
+        }
+      }
+    }
+
+    const checkBtn2 = document.createElement('button'); checkBtn2.className='btn btn-primary'; checkBtn2.textContent=L.check;
+    checkBtn2.onclick = checkNumAnswer;
+    inp.onkeydown = (e)=>{ if(e.key==='Enter') checkNumAnswer(); };
+    btnRow.appendChild(checkBtn2);
+  }
 }
 
 function addHintAndCheck(btnRow, L, checkFn) {
@@ -1194,7 +1355,12 @@ function addNextBtn(btnRow, L) {
   btnRow.appendChild(b);
 }
 
+function newNumTask() {
+  G.currentNum = randNum();
+}
+
 function newTask() {
+  if (G.mode === 4) { newNumTask(); return; }
   const {h,m}=randTime(G.diff); G.tH=h; G.tM=m;
 }
 

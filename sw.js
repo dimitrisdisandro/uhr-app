@@ -1,6 +1,6 @@
 // sw.js — Service Worker for offline PWA
 
-const CACHE = 'uhr-app-v1';
+const CACHE = 'uhr-app-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -11,6 +11,7 @@ const ASSETS = [
   './badges.js',
   './app.js',
   './manifest.json',
+  './README.md',
   './icons/icon-192.png',
   './icons/icon-512.png'
 ];
