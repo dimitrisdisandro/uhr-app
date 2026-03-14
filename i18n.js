@@ -18,19 +18,30 @@ const NUM_JA = ['ゼロ','一','二','三','四','五','六','七','八','九','
 const MIN_DE = {0:'null',5:'fünf',10:'zehn',15:'fünfzehn',20:'zwanzig',25:'fünfundzwanzig',
   30:'dreißig',35:'fünfunddreißig',40:'vierzig',45:'fünfundvierzig',50:'fünfzig',55:'fünfundfünfzig'};
 
-function h12(h) { return h % 12 === 0 ? 12 : h % 12; }
+// "halb X" / "vor X" braucht "eins" statt "ein" für 1
+const NUM_DE_HALB = ['null','eins','zwei','drei','vier','fünf','sechs','sieben','acht','neun','zehn',
+  'elf','zwölf','eins','zwei','drei','vier','fünf','sechs','sieben','acht','eins','zwei','drei'];
+
+// Italienisch verwendet immer 12h-Zahlen (1–12)
+const NUM_IT_12 = ['dodici','una','due','tre','quattro','cinque','sei','sette','otto','nove','dieci','undici','dodici'];
+
+// Italienisch: korrekte Stundenform mit Artikel für "meno"-Ausdrücke
+function itNextHour(next12) {
+  if (next12 === 1) return "l'una";
+  return 'le ' + NUM_IT_12[next12];
+}
 function nextH12(h) { return h12(h) % 12 + 1; }
 // For 24h: next hour wraps at 24
 function nextH24(h) { return (h + 1) % 24; }
 
 function fmtTime(h, m, lang) {
-  const h12v = h12(h);
+  const h12v = h12(h);  // always 1–12
   const next12 = nextH12(h);
   const next24 = nextH24(h);
 
   if (lang === 'de') {
-    const hWord = NUM_DE[h];
-    const next12Word = NUM_DE[next12];
+    const hWord = h === 0 ? NUM_DE[12] : NUM_DE[h];
+    const next12Word = NUM_DE_HALB[next12];
     if (m === 0)  return `${hWord} Uhr`;
     if (m === 5)  return `fünf nach ${hWord}`;
     if (m === 10) return `zehn nach ${hWord}`;
@@ -47,22 +58,23 @@ function fmtTime(h, m, lang) {
   }
 
   if (lang === 'it') {
-    const hWord = NUM_IT[h];
-    const next12Word = NUM_IT[next12];
-    if (h === 1 || h === 13) {
+    const hWord = NUM_IT_12[h12v];
+    const next12Word = NUM_IT_12[next12];
+    const isUna = h12v === 1;
+    if (isUna) {
       if (m === 0)  return `l'una`;
       if (m === 15) return `l'una e un quarto`;
       if (m === 30) return `l'una e mezza`;
-      if (m === 45) return `le ${next12Word} meno un quarto`;
+      if (m === 45) return `${itNextHour(next12)} meno un quarto`;
       if (m < 30)   return `l'una e ${m}`;
-      return `le ${next12Word} meno ${60-m}`;
+      return `${itNextHour(next12)} meno ${60-m}`;
     }
     if (m === 0)  return `le ${hWord}`;
     if (m === 15) return `le ${hWord} e un quarto`;
     if (m === 30) return `le ${hWord} e mezza`;
-    if (m === 45) return `le ${next12Word} meno un quarto`;
+    if (m === 45) return `${itNextHour(next12)} meno un quarto`;
     if (m < 30)   return `le ${hWord} e ${m}`;
-    return `le ${next12Word} meno ${60-m}`;
+    return `${itNextHour(next12)} meno ${60-m}`;
   }
 
   if (lang === 'ja') {
@@ -89,8 +101,8 @@ function getFragments(h, m, lang) {
   const next24 = nextH24(h);
 
   if (lang === 'de') {
-    const hW = NUM_DE[h];
-    const n12W = NUM_DE[next12];
+    const hW = h === 0 ? NUM_DE[12] : NUM_DE[h];
+    const n12W = NUM_DE_HALB[next12];
     if (m === 0)  return { correct: [hW, 'Uhr'],                          decoys: ['nach','vor','halb','Viertel'] };
     if (m === 5)  return { correct: ['fünf','nach',hW],                   decoys: ['vor','halb','Uhr','zehn'] };
     if (m === 10) return { correct: ['zehn','nach',hW],                   decoys: ['vor','fünf','halb','Uhr'] };
@@ -118,15 +130,17 @@ function getFragments(h, m, lang) {
   }
 
   if (lang === 'it') {
-    const hW = NUM_IT[h];
-    const nW = NUM_IT[next12];
-    const isUna = (h === 1 || h === 13);
+    const hW = NUM_IT_12[h12v];
+    const nW = NUM_IT_12[next12];
+    const isUna = h12v === 1;
     if (m === 0)  return isUna ? {correct:["l'una"],          decoys:['le','e','mezza','meno']}
                                : {correct:['le',hW],          decoys:["l'una",'e','mezza','meno']};
     if (m === 30) return isUna ? {correct:["l'una",'e','mezza'],decoys:['le','meno','un','quarto']}
                                : {correct:['le',hW,'e','mezza'],decoys:["l'una",'meno','un','quarto']};
     if (m === 15) return { correct: isUna?["l'una",'e','un','quarto']:['le',hW,'e','un','quarto'], decoys: ['meno','mezza',nW,'dopo'] };
-    if (m === 45) return { correct: ['le',nW,'meno','un','quarto'], decoys: [hW,'e','mezza','dopo'] };
+    if (m === 45) return next12 === 1
+      ? { correct: ["l'una",'meno','un','quarto'], decoys: [hW,'e','mezza','dopo'] }
+      : { correct: ['le',nW,'meno','un','quarto'], decoys: [hW,'e','mezza','dopo'] };
     return isUna  ? { correct: ["l'una",'e',String(m)],       decoys: ['le','meno',nW,'mezza'] }
                   : { correct: ['le',hW,'e',String(m)],       decoys: ["l'una",'meno',nW,'mezza'] };
   }
