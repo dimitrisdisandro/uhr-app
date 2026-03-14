@@ -47,31 +47,58 @@ function getPathStep(totalAll) {
   return Math.min(step, PATH_THRESHOLDS.length - 1);
 }
 
-// ── Adaptive learning ─────────────────────────────────────────────
+// ── Adaptive learning (per language) ─────────────────────────────
+function getLangWeights() {
+  if (!currentProfile) return {};
+  const lw = currentProfile.langWeights = currentProfile.langWeights || {};
+  if (!lw[settings.lang]) lw[settings.lang] = {};
+  return lw[settings.lang];
+}
+
 function recordAttempt(h, m, correct) {
   if (!currentProfile) return;
   const key = `${h}:${m}`;
-  const w = currentProfile.weights = currentProfile.weights || {};
+  const w = getLangWeights();
   if (!w[key]) w[key] = { attempts: 0, wrong: 0 };
   w[key].attempts++;
   if (!correct) w[key].wrong++;
+  // Also update global weights for path/badge tracking
+  const gw = currentProfile.weights = currentProfile.weights || {};
+  if (!gw[key]) gw[key] = { attempts: 0, wrong: 0 };
+  gw[key].attempts++;
+  if (!correct) gw[key].wrong++;
 }
 
 function randTime(diff) {
   const mins = DIFFS[diff].minutes;
-  if (currentProfile && currentProfile.weights) {
+  const w = getLangWeights();
+  if (w && Object.keys(w).length > 0) {
     const pool = [];
     for (let h = 0; h <= 23; h++) {
       for (const m of mins) {
         const key = `${h}:${m}`;
-        const w = currentProfile.weights[key];
-        const weight = w ? Math.max(1, w.wrong * 2 + 1) : 1;
+        const weight = w[key] ? Math.max(1, w[key].wrong * 2 + 1) : 1;
         for (let i = 0; i < weight; i++) pool.push({h, m});
       }
     }
     return pool[Math.floor(Math.random() * pool.length)];
   }
   return { h: Math.floor(Math.random()*24), m: mins[Math.floor(Math.random()*mins.length)] };
+}
+
+// ── Language stats helpers ────────────────────────────────────────
+function getLangStats(lang) {
+  if (!currentProfile) return { total:0, correct:0, streak:0, bestStreak:0 };
+  const ls = currentProfile.langStats = currentProfile.langStats || {};
+  if (!ls[lang]) ls[lang] = { total:0, correct:0, streak:0, bestStreak:0 };
+  return ls[lang];
+}
+
+function getLangSession(lang) {
+  if (!currentProfile) return { correct:0, total:0, streak:0 };
+  const ls = currentProfile.langSession = currentProfile.langSession || {};
+  if (!ls[lang]) ls[lang] = { correct:0, total:0, streak:0 };
+  return ls[lang];
 }
 
 function wrongAnswers(h, m, lang, diff) {
@@ -174,6 +201,12 @@ function insertSliders(L, diff) {
   const fb = document.getElementById('feedback');
   const sliders = buildSliders(L, diff, ()=>{});
   fb.parentNode.insertBefore(sliders, fb);
+}
+
+// ── Speech helper: ensure German ends with "Uhr" ─────────────────
+function withUhr(timeStr, lang) {
+  if (lang !== 'de') return timeStr;
+  return timeStr.endsWith(' Uhr') ? timeStr : timeStr + ' Uhr';
 }
 
 // ── Confetti ──────────────────────────────────────────────────────
@@ -280,12 +313,15 @@ function timeOut() {
   const L = LANGS[settings.lang];
   G.answered = true; G.timerInterval = null;
   Audio.play('wrong');
-  currentProfile.stats.bestStreak = Math.max(currentProfile.stats.bestStreak||0, currentProfile.sessionStreak||0);
-  currentProfile.sessionStreak = 0;
+  const ls = getLangStats(settings.lang);
+  const sess = getLangSession(settings.lang);
+  currentProfile.stats.bestStreak = Math.max(currentProfile.stats.bestStreak||0, ls.streak||0);
+  ls.streak = 0; sess.streak = 0;
+  currentProfile.stats.totalAll = (currentProfile.stats.totalAll||0) + 1;
+  ls.total = (ls.total||0) + 1; sess.total = (sess.total||0) + 1;
   const fb = document.getElementById('feedback');
   fb.className = 'fb-error';
   fb.textContent = '⏱ ' + fmtTime(G.tH, G.tM, settings.lang);
-  currentProfile.stats.totalAll = (currentProfile.stats.totalAll||0) + 1;
   saveCurrentProfile(); renderScores();
   const btnRow = document.getElementById('btn-row'); btnRow.innerHTML = '';
   addNextBtn(btnRow, L);
@@ -327,9 +363,15 @@ function renderHighscore() {
   const L = LANGS[settings.lang];
   if (profiles.length < 2) { hs.style.display='none'; return; }
   hs.style.display = 'block';
-  const sorted = [...profiles].sort((a,b)=>(b.stats?.bestStreak||0)-(a.stats?.bestStreak||0));
-  hs.innerHTML = `<div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.75rem;">🏆 ${L.highscoreTitle||'Highscore'}</div>`;
+  // Sort by correct answers in current language
+  const sorted = [...profiles].sort((a,b)=>{
+    const aS = (a.langStats && a.langStats[settings.lang]) || {};
+    const bS = (b.langStats && b.langStats[settings.lang]) || {};
+    return (bS.correct||0) - (aS.correct||0);
+  });
+  hs.innerHTML = `<div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.75rem;">🏆 ${L.highscoreTitle||'Highscore'} — ${LANGS[settings.lang].flag}</div>`;
   sorted.forEach((p, i)=>{
+    const ls = (p.langStats && p.langStats[settings.lang]) || { correct:0, total:0, bestStreak:0 };
     const row = document.createElement('div');
     row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);';
     if (i === sorted.length-1) row.style.borderBottom = 'none';
@@ -337,7 +379,7 @@ function renderHighscore() {
     row.innerHTML = `<span style="font-size:18px;width:28px;text-align:center">${medal}</span>
       <span style="font-size:20px">${p.emoji||'🧒'}</span>
       <span style="flex:1;font-weight:600;font-size:14px;color:var(--text)">${p.name}</span>
-      <span style="font-size:13px;color:var(--muted)">🔥${p.stats?.bestStreak||0} &nbsp;✓${p.stats?.correctAll||0}</span>`;
+      <span style="font-size:13px;color:var(--muted)">🔥${ls.bestStreak||0} &nbsp;✓${ls.correct||0}/${ls.total||0}</span>`;
     hs.appendChild(row);
   });
 }
@@ -347,17 +389,36 @@ function renderProfileList() {
   [...list.children].forEach(c=>{ if(!c.classList.contains('new-profile-form')) c.remove(); });
   profiles.forEach((p, i)=>{
     const card = document.createElement('div'); card.className = 'profile-card';
+    card.style.flexDirection = 'column'; card.style.alignItems = 'stretch'; card.style.gap = '10px';
+    // Top row: avatar + name + delete
+    const topRow = document.createElement('div');
+    topRow.style.cssText = 'display:flex;align-items:center;gap:12px;';
     const av = document.createElement('div'); av.className = 'profile-avatar';
     av.style.background = profileColor(i); av.textContent = p.emoji || '🧒';
     const info = document.createElement('div'); info.className = 'profile-info';
     const name = document.createElement('div'); name.className = 'profile-name'; name.textContent = p.name;
-    const stats = document.createElement('div'); stats.className = 'profile-stats';
-    stats.textContent = `${p.stats?.correctAll||0}/${p.stats?.totalAll||0} ✓  🔥${p.stats?.dailyStreak||0}`;
-    info.appendChild(name); info.appendChild(stats);
+    const totalCorrect = p.stats?.correctAll || 0;
+    const totalAll = p.stats?.totalAll || 0;
+    const sub = document.createElement('div'); sub.className = 'profile-stats';
+    sub.textContent = `${totalCorrect}/${totalAll} ✓ gesamt  🔥${p.stats?.dailyStreak||0}`;
+    info.appendChild(name); info.appendChild(sub);
     const del = document.createElement('button'); del.className = 'profile-del'; del.textContent = '×';
     del.onclick = (e)=>{ e.stopPropagation(); if(confirm('Profil löschen?')){profiles.splice(i,1);saveProfiles(profiles);renderProfileList();renderHighscore();} };
-    card.appendChild(av); card.appendChild(info); card.appendChild(del);
-    card.onclick = ()=>{ Audio.play('tick'); selectProfile(i); };
+    topRow.appendChild(av); topRow.appendChild(info); topRow.appendChild(del);
+    // Language stats row
+    const langRow = document.createElement('div');
+    langRow.style.cssText = 'display:grid;grid-template-columns:repeat(4,1fr);gap:6px;';
+    Object.entries(LANGS).forEach(([k, Lv])=>{
+      const ls = (p.langStats && p.langStats[k]) || { total:0, correct:0, bestStreak:0 };
+      const cell = document.createElement('div');
+      cell.style.cssText = 'background:var(--surface);border-radius:var(--radius-sm);padding:6px 4px;text-align:center;';
+      cell.innerHTML = `<div style="font-size:16px">${Lv.flag}</div>
+        <div style="font-size:11px;font-weight:600;color:var(--text)">${ls.correct}/${ls.total}</div>
+        <div style="font-size:10px;color:var(--muted)">🔥${ls.bestStreak||0}</div>`;
+      langRow.appendChild(cell);
+    });
+    card.appendChild(topRow); card.appendChild(langRow);
+    card.onclick = (e)=>{ if(e.target.closest('.profile-del')) return; Audio.play('tick'); selectProfile(i); };
     list.insertBefore(card, list.firstChild);
   });
 }
@@ -406,9 +467,11 @@ function selectProfile(idx) {
   else currentProfile.stats.modesUsed = new Set();
   if (Array.isArray(currentProfile.stats.langsUsed)) currentProfile.stats.langsUsed = new Set(currentProfile.stats.langsUsed);
   else currentProfile.stats.langsUsed = new Set();
-  currentProfile.sessionCorrect = currentProfile.sessionCorrect || 0;
-  currentProfile.sessionTotal   = currentProfile.sessionTotal   || 0;
-  currentProfile.sessionStreak  = currentProfile.sessionStreak  || 0;
+  // Init per-language structures
+  currentProfile.langStats   = currentProfile.langStats   || {};
+  currentProfile.langWeights = currentProfile.langWeights || {};
+  // Reset session counters each login
+  currentProfile.langSession = {};
   G.mode = currentProfile.lastMode || 0;
   G.diff = currentProfile.lastDiff || 0;
   checkDaily();
@@ -461,11 +524,13 @@ function renderScores() {
   document.getElementById('lbl-correct').textContent = L.correct;
   document.getElementById('lbl-total').textContent   = L.total;
   document.getElementById('lbl-streak').textContent  = L.streak;
-  document.getElementById('score-correct').textContent = currentProfile.sessionCorrect || 0;
-  document.getElementById('score-total').textContent   = currentProfile.sessionTotal   || 0;
-  const str = currentProfile.sessionStreak || 0;
+  // Show per-language session stats
+  const ls = getLangSession(settings.lang);
+  document.getElementById('score-correct').textContent = ls.correct || 0;
+  document.getElementById('score-total').textContent   = ls.total   || 0;
+  const str = ls.streak || 0;
   document.getElementById('score-streak').textContent = str>0 ? '⭐'.repeat(Math.min(str,5)) : '—';
-  const tot = currentProfile.sessionTotal || 0, cor = currentProfile.sessionCorrect || 0;
+  const tot = ls.total || 0, cor = ls.correct || 0;
   document.getElementById('progress-bar').style.width = (tot>0?Math.round(cor/tot*100):0)+'%';
 }
 
@@ -551,7 +616,8 @@ function renderSettingsScreen() {
   document.getElementById('btn-reset').onclick = ()=>{
     if (confirm('Wirklich zurücksetzen?')) {
       currentProfile.stats={totalAll:0,correctAll:0,bestStreak:0,perfectRun:0,dailyStreak:0,lastDay:'',modesUsed:[],langsUsed:[]};
-      currentProfile.earned=[]; currentProfile.sessionCorrect=0; currentProfile.sessionTotal=0; currentProfile.sessionStreak=0; currentProfile.weights={};
+      currentProfile.earned=[]; currentProfile.weights={};
+      currentProfile.langStats={}; currentProfile.langWeights={}; currentProfile.langSession={};
       saveCurrentProfile(); showScreen('app'); renderApp();
     }
   };
@@ -671,7 +737,7 @@ function renderTask() {
           Audio.speak(correctTime, settings.lang);
         } else {
           const phrases = {
-            de: `Das ist nicht ${opt}. Die richtige Antwort wäre ${correctTime}.`,
+            de: `Das ist nicht ${opt}. Die richtige Antwort wäre ${withUhr(correctTime, 'de')}.`,
             it: `Non è ${opt}. La risposta corretta è ${correctTime}.`,
             en: `That's not ${opt}. The correct answer is ${correctTime}.`,
             ja: `${opt}ではありません。正しい答えは${correctTime}です。`
@@ -787,7 +853,7 @@ function renderTask() {
       } else {
         const chosen = G.wordAnswer.join(' ');
         const phrases = {
-          de: `Das ist nicht ${chosen}. Die richtige Antwort wäre ${correctTime}.`,
+          de: `Das ist nicht ${chosen}. Die richtige Antwort wäre ${withUhr(correctTime, 'de')}.`,
           it: `Non è ${chosen}. La risposta corretta è ${correctTime}.`,
           en: `That's not ${chosen}. The correct answer is ${correctTime}.`,
           ja: `${chosen}ではありません。正しい答えは${correctTime}です。`
@@ -825,36 +891,56 @@ function addHintAndCheck(btnRow, L, checkFn) {
 
 function handleResult(ok, L) {
   const fb = document.getElementById('feedback');
+  const lang = settings.lang;
+  const ls = getLangStats(lang);
+  const sess = getLangSession(lang);
+
+  // Global stats
   currentProfile.stats.totalAll   = (currentProfile.stats.totalAll||0) + 1;
-  currentProfile.sessionTotal     = (currentProfile.sessionTotal||0)   + 1;
+  // Per-language stats
+  ls.total = (ls.total||0) + 1;
+  sess.total = (sess.total||0) + 1;
+
   recordAttempt(G.tH, G.tM, ok);
+
   if (ok) {
     Audio.play('correct');
+    // Global
     currentProfile.stats.correctAll  = (currentProfile.stats.correctAll||0)  + 1;
-    currentProfile.sessionCorrect    = (currentProfile.sessionCorrect||0)    + 1;
-    currentProfile.sessionStreak     = (currentProfile.sessionStreak||0)     + 1;
-    currentProfile.stats.bestStreak  = Math.max(currentProfile.stats.bestStreak||0, currentProfile.sessionStreak);
     currentProfile.stats.perfectRun  = (currentProfile.stats.perfectRun||0)  + 1;
+    // Per-language
+    ls.correct     = (ls.correct||0)     + 1;
+    ls.streak      = (ls.streak||0)      + 1;
+    ls.bestStreak  = Math.max(ls.bestStreak||0, ls.streak);
+    sess.correct   = (sess.correct||0)   + 1;
+    sess.streak    = (sess.streak||0)    + 1;
+    // Global streak (for badges)
+    currentProfile.stats.bestStreak = Math.max(currentProfile.stats.bestStreak||0, ls.streak);
     if (G.dailyDone < G.dailyTotal) {
       G.dailyDone++; currentProfile.dailyDone = G.dailyDone;
       if (G.dailyDone >= G.dailyTotal) launchConfetti();
     }
-    if (currentProfile.sessionStreak % 5 === 0) launchConfetti();
+    if (sess.streak % 5 === 0) launchConfetti();
     fb.className='fb-success'; fb.textContent=L.fb.correct;
   } else {
     Audio.play('wrong');
-    currentProfile.stats.bestStreak = Math.max(currentProfile.stats.bestStreak||0, currentProfile.sessionStreak||0);
-    currentProfile.sessionStreak = 0;
+    // Global
+    currentProfile.stats.bestStreak = Math.max(currentProfile.stats.bestStreak||0, ls.streak||0);
     currentProfile.stats.perfectRun = 0;
-    // Only overwrite if checkFn hasn't already set an explanation
+    // Per-language
+    ls.streak = 0;
+    sess.streak = 0;
     if (!fb.textContent || fb.className !== 'fb-error') {
       fb.className='fb-error'; fb.textContent=L.fb.wrong;
     }
   }
+
   const prevLen = (currentProfile.earned||[]).length;
-  currentProfile.earned = Badges.check(currentProfile.stats, currentProfile.earned||[], settings.lang, showBadgeToast);
-  if (currentProfile.earned.length > prevLen) Badges.render(currentProfile.earned, settings.lang);
+  currentProfile.earned = Badges.check(currentProfile.stats, currentProfile.earned||[], lang, showBadgeToast);
+  if (currentProfile.earned.length > prevLen) Badges.render(currentProfile.earned, lang);
   renderScores(); renderPathRow(); renderDailyBanner();
+
+  // Save (convert sets to arrays)
   currentProfile.stats.modesUsed = [...(currentProfile.stats.modesUsed||new Set())];
   currentProfile.stats.langsUsed = [...(currentProfile.stats.langsUsed||new Set())];
   saveCurrentProfile();
