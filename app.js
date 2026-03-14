@@ -7,11 +7,15 @@ const Store = {
 };
 
 // ── Settings ──────────────────────────────────────────────────────
-let settings = Store.get('settings', { lang:'de', sound:true, speech:true, timer:0 });
-// timer: 0=off, 5, 10, 15 seconds
+let settings = Store.get('settings', { lang:'de', sound:true, speech:true, timer:0, dark:false });
+
+// ── Dark mode ─────────────────────────────────────────────────────
+function applyDarkMode(on) {
+  document.documentElement.setAttribute('data-theme', on ? 'dark' : 'light');
+}
+applyDarkMode(settings.dark);
 
 // ── Profiles ──────────────────────────────────────────────────────
-// profile = { id, name, emoji, lang, stats:{totalAll,correctAll,bestStreak,perfectRun,modesUsed,langsUsed,dailyStreak,lastDay}, earned:[], sessionCorrect, sessionTotal, sessionStreak, diff, mode }
 function loadProfiles() { return Store.get('profiles', []); }
 function saveProfiles(p) { Store.set('profiles', p); }
 
@@ -35,7 +39,7 @@ let G = {
   dailyTotal: 5
 };
 
-// Learning path: 8 steps, each requires N correct answers total
+// ── Learning path ─────────────────────────────────────────────────
 const PATH_THRESHOLDS = [0, 3, 8, 15, 25, 40, 60, 85, 120];
 function getPathStep(totalAll) {
   let step = 0;
@@ -43,7 +47,7 @@ function getPathStep(totalAll) {
   return Math.min(step, PATH_THRESHOLDS.length - 1);
 }
 
-// Adaptive: track which times are hard
+// ── Adaptive learning ─────────────────────────────────────────────
 function recordAttempt(h, m, correct) {
   if (!currentProfile) return;
   const key = `${h}:${m}`;
@@ -55,7 +59,6 @@ function recordAttempt(h, m, correct) {
 
 function randTime(diff) {
   const mins = DIFFS[diff].minutes;
-  // Adaptive: give harder times more weight
   if (currentProfile && currentProfile.weights) {
     const pool = [];
     for (let h = 1; h <= 12; h++) {
@@ -86,6 +89,32 @@ function wrongAnswers(h, m, lang, diff) {
   return [...new Set(pool)].sort(()=>Math.random()-.5).slice(0, 3);
 }
 
+// ── Wrong answer explanation ──────────────────────────────────────
+function wrongExplanation(h, m, uH, uM, lang) {
+  const h12 = h%12===0?12:h%12;
+  const uH12 = uH%12===0?12:uH%12;
+  if (lang === 'de') {
+    if (uH12 !== h12 && uM !== m) return `Der kurze Zeiger zeigt auf ${h12}, der lange auf ${m === 0 ? '12 (= 0 Min.)' : m+' Min.'}.`;
+    if (uH12 !== h12) return `Der kurze Zeiger (Stunden) zeigt auf ${h12}, nicht auf ${uH12}.`;
+    if (uM !== m) return `Der lange Zeiger (Minuten) zeigt auf ${m} Min., nicht auf ${uM} Min.`;
+  }
+  if (lang === 'it') {
+    if (uH12 !== h12 && uM !== m) return `La lancetta corta indica ${h12}, quella lunga ${m} min.`;
+    if (uH12 !== h12) return `La lancetta corta (ore) indica ${h12}, non ${uH12}.`;
+    if (uM !== m) return `La lancetta lunga (minuti) indica ${m} min., non ${uM} min.`;
+  }
+  if (lang === 'en') {
+    if (uH12 !== h12 && uM !== m) return `Short hand → ${h12}, long hand → ${m} min.`;
+    if (uH12 !== h12) return `Short hand (hours) points to ${h12}, not ${uH12}.`;
+    if (uM !== m) return `Long hand (minutes) points to ${m} min., not ${uM} min.`;
+  }
+  if (lang === 'ja') {
+    if (uH12 !== h12) return `短い針は${h12}を指します（${uH12}ではありません）。`;
+    if (uM !== m) return `長い針は${m}分を指します（${uM}分ではありません）。`;
+  }
+  return LANGS[lang].fb.wrong;
+}
+
 // ── Confetti ──────────────────────────────────────────────────────
 function launchConfetti() {
   const cel = document.getElementById('celebrate');
@@ -113,6 +142,19 @@ function showBadgeToast(badges, lang) {
   setTimeout(()=>{ toast.style.display='none'; }, 3000);
 }
 
+// ── Task transition ───────────────────────────────────────────────
+function animateTransition(cb) {
+  const card = document.getElementById('task-card');
+  card.style.transition = 'opacity 0.18s ease, transform 0.18s ease';
+  card.style.opacity = '0';
+  card.style.transform = 'translateY(6px)';
+  setTimeout(()=>{
+    cb();
+    card.style.opacity = '1';
+    card.style.transform = 'translateY(0)';
+  }, 180);
+}
+
 // ── Profile save ──────────────────────────────────────────────────
 function saveCurrentProfile() {
   if (currentProfileIdx < 0) return;
@@ -126,13 +168,8 @@ function checkDaily() {
   const today = new Date().toDateString();
   if (!currentProfile.stats.lastDay) currentProfile.stats.lastDay = '';
   if (currentProfile.stats.lastDay !== today) {
-    // New day
     const yesterday = new Date(Date.now()-86400000).toDateString();
-    if (currentProfile.stats.lastDay === yesterday) {
-      currentProfile.stats.dailyStreak = (currentProfile.stats.dailyStreak||0) + 1;
-    } else {
-      currentProfile.stats.dailyStreak = 1;
-    }
+    currentProfile.stats.dailyStreak = currentProfile.stats.lastDay === yesterday ? (currentProfile.stats.dailyStreak||0)+1 : 1;
     currentProfile.stats.lastDay = today;
     currentProfile.dailyDone = 0;
     saveCurrentProfile();
@@ -144,13 +181,11 @@ function checkDaily() {
 function renderDailyBanner() {
   const L = LANGS[settings.lang];
   const banner = document.getElementById('daily-banner');
-  const done = G.dailyDone;
-  const total = G.dailyTotal;
+  const done = G.dailyDone, total = G.dailyTotal;
   if (done >= total) { banner.style.display='none'; return; }
   banner.style.display = 'flex';
   document.getElementById('daily-text').textContent = L.dailyText + ' ' + done + '/' + total;
-  const dots = document.getElementById('daily-dots');
-  dots.innerHTML = '';
+  const dots = document.getElementById('daily-dots'); dots.innerHTML = '';
   for (let i = 0; i < total; i++) {
     const d = document.createElement('div');
     d.className = 'daily-dot' + (i < done ? ' done' : '');
@@ -165,18 +200,13 @@ function startTimer() {
   G.timerRemaining = settings.timer;
   const wrap = document.getElementById('timer-bar-wrap');
   const bar = document.getElementById('timer-bar');
-  wrap.style.display = 'block';
-  bar.style.width = '100%';
-  bar.classList.remove('urgent');
+  wrap.style.display = 'block'; bar.style.width = '100%'; bar.classList.remove('urgent');
   G.timerInterval = setInterval(()=>{
     G.timerRemaining -= 0.1;
     const pct = Math.max(0, (G.timerRemaining / settings.timer) * 100);
     bar.style.width = pct + '%';
     if (G.timerRemaining <= settings.timer * 0.3) bar.classList.add('urgent');
-    if (G.timerRemaining <= 0) {
-      clearInterval(G.timerInterval);
-      if (!G.answered) timeOut();
-    }
+    if (G.timerRemaining <= 0) { clearInterval(G.timerInterval); if (!G.answered) timeOut(); }
   }, 100);
 }
 
@@ -187,8 +217,7 @@ function stopTimer() {
 
 function timeOut() {
   const L = LANGS[settings.lang];
-  G.answered = true;
-  G.timerInterval = null;
+  G.answered = true; G.timerInterval = null;
   Audio.play('wrong');
   currentProfile.stats.bestStreak = Math.max(currentProfile.stats.bestStreak||0, currentProfile.sessionStreak||0);
   currentProfile.sessionStreak = 0;
@@ -196,10 +225,8 @@ function timeOut() {
   fb.className = 'fb-error';
   fb.textContent = '⏱ ' + fmtTime(G.tH, G.tM, settings.lang);
   currentProfile.stats.totalAll = (currentProfile.stats.totalAll||0) + 1;
-  saveCurrentProfile();
-  renderScores();
-  const btnRow = document.getElementById('btn-row');
-  btnRow.innerHTML = '';
+  saveCurrentProfile(); renderScores();
+  const btnRow = document.getElementById('btn-row'); btnRow.innerHTML = '';
   addNextBtn(btnRow, L);
 }
 
@@ -216,11 +243,11 @@ function renderProfileScreen() {
   document.getElementById('btn-add-profile').textContent = '+ ' + L.newProfile;
   renderProfileList();
   renderLangBarProfile();
+  renderHighscore();
 }
 
 function renderLangBarProfile() {
-  const lb = document.getElementById('lang-bar-profile');
-  lb.innerHTML = '';
+  const lb = document.getElementById('lang-bar-profile'); lb.innerHTML = '';
   Object.entries(LANGS).forEach(([k, L])=>{
     const b = document.createElement('button'); b.className = 'lang-btn'+(k===settings.lang?' active':'');
     b.textContent = L.flag+' '+L.name;
@@ -229,11 +256,34 @@ function renderLangBarProfile() {
   });
 }
 
+function renderHighscore() {
+  let hs = document.getElementById('highscore-box');
+  if (!hs) {
+    hs = document.createElement('div'); hs.id = 'highscore-box';
+    hs.style.cssText = 'margin-top:1.25rem;background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1rem 1.25rem;';
+    document.querySelector('.profile-wrap').appendChild(hs);
+  }
+  const L = LANGS[settings.lang];
+  if (profiles.length < 2) { hs.style.display='none'; return; }
+  hs.style.display = 'block';
+  const sorted = [...profiles].sort((a,b)=>(b.stats?.bestStreak||0)-(a.stats?.bestStreak||0));
+  hs.innerHTML = `<div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:.75rem;">🏆 ${L.highscoreTitle||'Highscore'}</div>`;
+  sorted.forEach((p, i)=>{
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);';
+    if (i === sorted.length-1) row.style.borderBottom = 'none';
+    const medal = ['🥇','🥈','🥉'][i] || `${i+1}.`;
+    row.innerHTML = `<span style="font-size:18px;width:28px;text-align:center">${medal}</span>
+      <span style="font-size:20px">${p.emoji||'🧒'}</span>
+      <span style="flex:1;font-weight:600;font-size:14px;color:var(--text)">${p.name}</span>
+      <span style="font-size:13px;color:var(--muted)">🔥${p.stats?.bestStreak||0} &nbsp;✓${p.stats?.correctAll||0}</span>`;
+    hs.appendChild(row);
+  });
+}
+
 function renderProfileList() {
   const list = document.getElementById('profile-list');
-  // Remove all non-form children
   [...list.children].forEach(c=>{ if(!c.classList.contains('new-profile-form')) c.remove(); });
-
   profiles.forEach((p, i)=>{
     const card = document.createElement('div'); card.className = 'profile-card';
     const av = document.createElement('div'); av.className = 'profile-avatar';
@@ -241,12 +291,10 @@ function renderProfileList() {
     const info = document.createElement('div'); info.className = 'profile-info';
     const name = document.createElement('div'); name.className = 'profile-name'; name.textContent = p.name;
     const stats = document.createElement('div'); stats.className = 'profile-stats';
-    const total = p.stats?.totalAll || 0;
-    const correct = p.stats?.correctAll || 0;
-    stats.textContent = `${correct}/${total} ✓  🔥${p.stats?.dailyStreak||0}`;
+    stats.textContent = `${p.stats?.correctAll||0}/${p.stats?.totalAll||0} ✓  🔥${p.stats?.dailyStreak||0}`;
     info.appendChild(name); info.appendChild(stats);
     const del = document.createElement('button'); del.className = 'profile-del'; del.textContent = '×';
-    del.onclick = (e)=>{ e.stopPropagation(); if(confirm('Profil löschen?')){profiles.splice(i,1);saveProfiles(profiles);renderProfileList();} };
+    del.onclick = (e)=>{ e.stopPropagation(); if(confirm('Profil löschen?')){profiles.splice(i,1);saveProfiles(profiles);renderProfileList();renderHighscore();} };
     card.appendChild(av); card.appendChild(info); card.appendChild(del);
     card.onclick = ()=>{ Audio.play('tick'); selectProfile(i); };
     list.insertBefore(card, list.firstChild);
@@ -276,12 +324,11 @@ document.getElementById('btn-add-profile').onclick = ()=>{
   const btns = document.createElement('div'); btns.className = 'form-btns';
   const saveBtn = document.createElement('button'); saveBtn.className = 'btn btn-primary'; saveBtn.textContent = '✓';
   saveBtn.onclick = ()=>{
-    const name = inp.value.trim();
-    if (!name) { inp.focus(); return; }
-    const p = { id: Date.now(), name, emoji: selEmoji, stats:{ totalAll:0,correctAll:0,bestStreak:0,perfectRun:0,dailyStreak:0,lastDay:'',modesUsed:[],langsUsed:[] }, earned:[], sessionCorrect:0, sessionTotal:0, sessionStreak:0, dailyDone:0, weights:{} };
+    const name = inp.value.trim(); if (!name) { inp.focus(); return; }
+    const p = { id:Date.now(), name, emoji:selEmoji, stats:{totalAll:0,correctAll:0,bestStreak:0,perfectRun:0,dailyStreak:0,lastDay:'',modesUsed:[],langsUsed:[]}, earned:[], sessionCorrect:0, sessionTotal:0, sessionStreak:0, dailyDone:0, weights:{} };
     profiles.push(p); saveProfiles(profiles);
     form.remove(); newProfileForm=null;
-    renderProfileList();
+    renderProfileList(); renderHighscore();
   };
   const cancelBtn = document.createElement('button'); cancelBtn.className = 'btn'; cancelBtn.textContent = '×';
   cancelBtn.onclick = ()=>{ form.remove(); newProfileForm=null; };
@@ -294,12 +341,10 @@ document.getElementById('btn-add-profile').onclick = ()=>{
 function selectProfile(idx) {
   currentProfile = profiles[idx];
   currentProfileIdx = idx;
-  // Restore sets from arrays
   if (Array.isArray(currentProfile.stats.modesUsed)) currentProfile.stats.modesUsed = new Set(currentProfile.stats.modesUsed);
   else currentProfile.stats.modesUsed = new Set();
   if (Array.isArray(currentProfile.stats.langsUsed)) currentProfile.stats.langsUsed = new Set(currentProfile.stats.langsUsed);
   else currentProfile.stats.langsUsed = new Set();
-  // Restore session
   currentProfile.sessionCorrect = currentProfile.sessionCorrect || 0;
   currentProfile.sessionTotal   = currentProfile.sessionTotal   || 0;
   currentProfile.sessionStreak  = currentProfile.sessionStreak  || 0;
@@ -313,7 +358,6 @@ function selectProfile(idx) {
 // ── App Screen ────────────────────────────────────────────────────
 function renderApp() {
   const L = LANGS[settings.lang];
-  document.getElementById('app-title') && (document.getElementById('app-title').textContent = L.appTitle);
   document.getElementById('player-name-display').textContent = (currentProfile.emoji||'') + ' ' + currentProfile.name;
   renderModeTabs();
   renderDifficulty();
@@ -329,15 +373,11 @@ function renderApp() {
 function renderModeTabs() {
   const L = LANGS[settings.lang];
   const mt = document.getElementById('mode-tabs'); mt.innerHTML = '';
-  const step = getPathStep(currentProfile.stats.totalAll||0);
-  // Unlock modes progressively: mode 0 always, 1 after step 1, 2 after step 2, 3 after step 3
-  const unlockAt = [0, 1, 2, 3];
   L.modes.forEach((m, i)=>{
     const b = document.createElement('button');
-    const locked = step < unlockAt[i];
-    b.className = 'mode-tab' + (i===G.mode?' active':'') + (locked?' locked-tab':'');
-    b.textContent = (locked?'🔒 ':'')+m;
-    b.onclick = ()=>{ if(locked)return; Audio.play('tick'); G.mode=i; currentProfile.lastMode=i; saveCurrentProfile(); newTask(); renderTask(); renderModeTabs(); };
+    b.className = 'mode-tab' + (i===G.mode?' active':'');
+    b.textContent = m;
+    b.onclick = ()=>{ Audio.play('tick'); G.mode=i; currentProfile.lastMode=i; saveCurrentProfile(); newTask(); animateTransition(renderTask); renderModeTabs(); };
     mt.appendChild(b);
   });
 }
@@ -364,14 +404,12 @@ function renderScores() {
   document.getElementById('score-total').textContent   = currentProfile.sessionTotal   || 0;
   const str = currentProfile.sessionStreak || 0;
   document.getElementById('score-streak').textContent = str>0 ? '⭐'.repeat(Math.min(str,5)) : '—';
-  const tot = currentProfile.sessionTotal || 0;
-  const cor = currentProfile.sessionCorrect || 0;
+  const tot = currentProfile.sessionTotal || 0, cor = currentProfile.sessionCorrect || 0;
   document.getElementById('progress-bar').style.width = (tot>0?Math.round(cor/tot*100):0)+'%';
 }
 
 function renderPathRow() {
-  const row = document.getElementById('path-row');
-  row.innerHTML = '';
+  const row = document.getElementById('path-row'); row.innerHTML = '';
   const step = getPathStep(currentProfile.stats.totalAll||0);
   const icons = ['🌱','⭐','🌙','🌟','🔥','💫','🏆','👑','🎓'];
   PATH_THRESHOLDS.forEach((thresh, i)=>{
@@ -380,17 +418,15 @@ function renderPathRow() {
     if (i < step) cls += ' done';
     else if (i === step) cls += ' current';
     else cls += ' locked';
-    el.className = cls;
-    el.textContent = icons[i] || i;
+    el.className = cls; el.textContent = icons[i] || i;
     el.title = thresh > 0 ? `${thresh} ✓` : 'Start';
     row.appendChild(el);
   });
 }
 
-// ── Back button ───────────────────────────────────────────────────
+// ── Back / Settings ───────────────────────────────────────────────
 document.getElementById('btn-back').onclick = ()=>{
   stopTimer();
-  // Save sets as arrays before storing
   if (currentProfile) {
     currentProfile.stats.modesUsed = [...(currentProfile.stats.modesUsed||new Set())];
     currentProfile.stats.langsUsed = [...(currentProfile.stats.langsUsed||new Set())];
@@ -400,7 +436,6 @@ document.getElementById('btn-back').onclick = ()=>{
   renderProfileScreen();
 };
 
-// ── Settings Screen ───────────────────────────────────────────────
 document.getElementById('btn-settings').onclick = ()=>{ renderSettingsScreen(); showScreen('settings'); };
 document.getElementById('btn-settings-back').onclick = ()=>{ showScreen('app'); renderApp(); };
 
@@ -413,7 +448,15 @@ function renderSettingsScreen() {
   document.getElementById('lbl-lang-setting').textContent = L.langLabel;
   document.getElementById('lbl-reset').textContent = L.resetLabel;
 
-  // Timer options
+  // Dark mode
+  const dm = document.getElementById('btn-dark-toggle');
+  if (dm) {
+    dm.textContent = settings.dark ? L.on : L.off;
+    dm.className = 'toggle-btn' + (settings.dark?' on':'');
+    dm.onclick = ()=>{ settings.dark=!settings.dark; applyDarkMode(settings.dark); Store.set('settings',settings); renderSettingsScreen(); };
+  }
+
+  // Timer
   const to = document.getElementById('timer-options'); to.innerHTML = '';
   [0,5,10,15].forEach((v,i)=>{
     const b = document.createElement('button'); b.className='timer-opt'+(settings.timer===v?' active':'');
@@ -422,17 +465,17 @@ function renderSettingsScreen() {
     to.appendChild(b);
   });
 
-  // Speech toggle
+  // Speech
   const sp = document.getElementById('btn-speech-toggle');
   sp.textContent = Audio.isSpeechOn() ? L.on : L.off;
   sp.className = 'toggle-btn' + (Audio.isSpeechOn()?' on':'');
-  sp.onclick = ()=>{ Audio.setSpeechEnabled(!Audio.isSpeechOn()); renderSettingsScreen(); };
+  sp.onclick = ()=>{ Audio.setSpeechEnabled(!Audio.isSpeechOn()); settings.speech=Audio.isSpeechOn(); Store.set('settings',settings); renderSettingsScreen(); };
 
-  // Sound toggle
+  // Sound
   const snd = document.getElementById('btn-sound-toggle');
   snd.textContent = Audio.isSoundOn() ? L.on : L.off;
   snd.className = 'toggle-btn' + (Audio.isSoundOn()?' on':'');
-  snd.onclick = ()=>{ Audio.setSoundEnabled(!Audio.isSoundOn()); renderSettingsScreen(); };
+  snd.onclick = ()=>{ Audio.setSoundEnabled(!Audio.isSoundOn()); settings.sound=Audio.isSoundOn(); Store.set('settings',settings); renderSettingsScreen(); };
 
   // Lang
   const lb = document.getElementById('lang-bar-settings'); lb.innerHTML = '';
@@ -446,12 +489,28 @@ function renderSettingsScreen() {
   // Reset
   document.getElementById('btn-reset').onclick = ()=>{
     if (confirm('Wirklich zurücksetzen?')) {
-      currentProfile.stats = { totalAll:0,correctAll:0,bestStreak:0,perfectRun:0,dailyStreak:0,lastDay:'',modesUsed:[],langsUsed:[] };
-      currentProfile.earned = []; currentProfile.sessionCorrect=0; currentProfile.sessionTotal=0; currentProfile.sessionStreak=0; currentProfile.weights={};
-      saveCurrentProfile();
-      showScreen('app'); renderApp();
+      currentProfile.stats={totalAll:0,correctAll:0,bestStreak:0,perfectRun:0,dailyStreak:0,lastDay:'',modesUsed:[],langsUsed:[]};
+      currentProfile.earned=[]; currentProfile.sessionCorrect=0; currentProfile.sessionTotal=0; currentProfile.sessionStreak=0; currentProfile.weights={};
+      saveCurrentProfile(); showScreen('app'); renderApp();
     }
   };
+}
+
+// ── Live clock label ──────────────────────────────────────────────
+function updateLiveLabel() {
+  let lbl = document.getElementById('live-time-label');
+  if (!lbl) {
+    lbl = document.createElement('div'); lbl.id = 'live-time-label';
+    lbl.style.cssText = 'text-align:center;font-size:22px;font-weight:700;color:var(--primary);margin-bottom:.5rem;letter-spacing:.5px;min-height:30px;';
+    const cw = document.getElementById('clock-wrap');
+    cw.parentNode.insertBefore(lbl, cw.nextSibling);
+  }
+  lbl.textContent = fmtTime(G.uH, G.uM, settings.lang);
+}
+
+function removeLiveLabel() {
+  const lbl = document.getElementById('live-time-label');
+  if (lbl) lbl.remove();
 }
 
 // ── Drag setup ────────────────────────────────────────────────────
@@ -467,8 +526,9 @@ function setupDrag() {
     if (G.dragging==='hour') { const nH=Clock.snapH(ang); if(nH!==G.uH){G.uH=nH;Audio.play('drag');} }
     else { const nM=Clock.snapM(ang,G.diff); if(nM!==G.uM){G.uM=nM;Audio.play('drag');} }
     Clock.draw(document.getElementById('clock-svg'), G.uH, G.uM, true, G.dragging);
+    updateLiveLabel();
   };
-  const onUp = ()=>{ G.dragging=null; document.getElementById('clock-svg').style.cursor='default'; Clock.draw(document.getElementById('clock-svg'),G.uH,G.uM,true,null); };
+  const onUp = ()=>{ G.dragging=null; document.getElementById('clock-svg').style.cursor='default'; Clock.draw(document.getElementById('clock-svg'),G.uH,G.uM,true,null); updateLiveLabel(); };
   document.addEventListener('mousemove', onMove);
   document.addEventListener('mouseup', onUp);
   document.addEventListener('touchmove', onMove, {passive:false});
@@ -478,6 +538,7 @@ function setupDrag() {
 // ── Hide helpers ──────────────────────────────────────────────────
 function hideAll() {
   ['answer-grid','text-task-box','word-area'].forEach(id=>document.getElementById(id).style.display='none');
+  removeLiveLabel();
 }
 
 // ── Render Task ───────────────────────────────────────────────────
@@ -490,7 +551,6 @@ function renderTask() {
   hideAll(); G.answered = false;
   stopTimer();
 
-  // Track language and mode used
   if (currentProfile.stats.modesUsed instanceof Set) currentProfile.stats.modesUsed.add(G.mode);
   if (currentProfile.stats.langsUsed instanceof Set) currentProfile.stats.langsUsed.add(settings.lang);
 
@@ -500,7 +560,7 @@ function renderTask() {
     document.getElementById('task-sub').textContent = L.readSub();
     document.getElementById('clock-wrap').style.display = 'flex';
     Clock.draw(document.getElementById('clock-svg'), G.tH, G.tM, false, null);
-    if (settings.speech) Audio.speak(fmtTime(G.tH,G.tM,settings.lang)+'?', settings.lang);
+    // No speech — would reveal the answer
     ag.style.display = 'grid';
     const wrong = wrongAnswers(G.tH, G.tM, settings.lang, G.diff);
     const opts = [...wrong, fmtTime(G.tH,G.tM,settings.lang)].sort(()=>Math.random()-.5);
@@ -509,6 +569,7 @@ function renderTask() {
       b.onclick=()=>{
         if (G.answered) return;
         G.answered=true; stopTimer(); Audio.play('tick');
+        Audio.speak(opt, settings.lang); // speak chosen answer
         const ok = opt===fmtTime(G.tH,G.tM,settings.lang);
         setTimeout(()=>{
           handleResult(ok, L);
@@ -529,10 +590,17 @@ function renderTask() {
     document.getElementById('clock-wrap').style.display = 'flex';
     G.uH = ((G.tH+3)%12)||12; G.uM = 0;
     Clock.draw(document.getElementById('clock-svg'), G.uH, G.uM, true, null);
+    updateLiveLabel();
     setupDrag();
     addHintAndCheck(btnRow, L, ()=>{
       const ok = G.uH%12===G.tH%12 && G.uM===G.tM;
-      if (!ok) Clock.draw(document.getElementById('clock-svg'), G.tH, G.tM, false, null);
+      if (!ok) {
+        const fb = document.getElementById('feedback');
+        fb.className = 'fb-error';
+        fb.textContent = wrongExplanation(G.tH, G.tM, G.uH, G.uM, settings.lang);
+        Clock.draw(document.getElementById('clock-svg'), G.tH, G.tM, false, null);
+        removeLiveLabel();
+      }
       return ok;
     });
 
@@ -543,13 +611,20 @@ function renderTask() {
     document.getElementById('clock-wrap').style.display = 'flex';
     const tb = document.getElementById('text-task-box'); tb.style.display='block';
     document.getElementById('text-task-main').textContent = fmtTime(G.tH, G.tM, settings.lang);
-    Audio.speak(fmtTime(G.tH, G.tM, settings.lang), settings.lang);
+    Audio.speak(fmtTime(G.tH, G.tM, settings.lang), settings.lang); // ok — text is visible anyway
     G.uH = ((G.tH+4)%12)||12; G.uM = 0;
     Clock.draw(document.getElementById('clock-svg'), G.uH, G.uM, true, null);
+    updateLiveLabel();
     setupDrag();
     addHintAndCheck(btnRow, L, ()=>{
       const ok = G.uH%12===G.tH%12 && G.uM===G.tM;
-      if (!ok) Clock.draw(document.getElementById('clock-svg'), G.tH, G.tM, false, null);
+      if (!ok) {
+        const fb = document.getElementById('feedback');
+        fb.className = 'fb-error';
+        fb.textContent = wrongExplanation(G.tH, G.tM, G.uH, G.uM, settings.lang);
+        Clock.draw(document.getElementById('clock-svg'), G.tH, G.tM, false, null);
+        removeLiveLabel();
+      }
       return ok;
     });
 
@@ -559,15 +634,16 @@ function renderTask() {
     document.getElementById('task-sub').textContent = L.wordSub();
     document.getElementById('clock-wrap').style.display = 'flex';
     Clock.draw(document.getElementById('clock-svg'), G.tH, G.tM, false, null);
-    Audio.speak(fmtTime(G.tH, G.tM, settings.lang), settings.lang);
+    // No speech — would reveal the answer
     const wa = document.getElementById('word-area'); wa.style.display='block'; wa.classList.remove('answered');
     const frag = getFragments(G.tH, G.tM, settings.lang);
     const allChips = [...frag.correct, ...frag.decoys.slice(0,3)].sort(()=>Math.random()-.5);
     G.wordAnswer = []; G.wordBank = [...allChips];
     const bank = document.getElementById('word-bank');
     const answerEl = document.getElementById('word-answer'); answerEl.innerHTML='';
-    const ansLabel = document.createElement('span'); ansLabel.id='word-answer-label'; ansLabel.style.cssText='font-size:11px;color:var(--muted);width:100%;margin-bottom:3px;'; ansLabel.textContent=L.wordAnswerLabel;
-    answerEl.appendChild(ansLabel);
+    const ansLabel = document.createElement('span'); ansLabel.id='word-answer-label';
+    ansLabel.style.cssText='font-size:11px;color:var(--muted);width:100%;margin-bottom:3px;';
+    ansLabel.textContent=L.wordAnswerLabel; answerEl.appendChild(ansLabel);
 
     function rebuildChips() {
       bank.innerHTML='';
@@ -586,14 +662,16 @@ function renderTask() {
       });
     }
     rebuildChips();
+
     const clearBtn=document.createElement('button'); clearBtn.className='btn'; clearBtn.textContent=L.reset;
     clearBtn.onclick=()=>{ if(G.answered)return; Audio.play('tick'); G.wordBank=[...allChips].sort(()=>Math.random()-.5); G.wordAnswer=[]; rebuildChips(); rebuildAnswer(); };
     const checkBtn=document.createElement('button'); checkBtn.className='btn btn-primary'; checkBtn.textContent=L.check;
     checkBtn.onclick=()=>{
       if (G.answered||G.wordAnswer.length===0) return;
       G.answered=true; wa.classList.add('answered'); Audio.play('tick'); stopTimer();
+      Audio.speak(G.wordAnswer.join(' '), settings.lang); // speak assembled sentence
+      const ok = G.wordAnswer.join(' ')===frag.correct.join(' ');
       setTimeout(()=>{
-        const ok = G.wordAnswer.join(' ')===frag.correct.join(' ');
         handleResult(ok, L);
         if (!ok) { const fb=document.getElementById('feedback'); fb.textContent += '  ✓ '+frag.correct.join(' '); }
         btnRow.innerHTML=''; addNextBtn(btnRow, L);
@@ -614,8 +692,8 @@ function addHintAndCheck(btnRow, L, checkFn) {
     setTimeout(()=>{
       const ok=checkFn();
       handleResult(ok, L);
-      const btnRow=document.getElementById('btn-row'); btnRow.innerHTML='';
-      addNextBtn(btnRow, L);
+      const br=document.getElementById('btn-row'); br.innerHTML='';
+      addNextBtn(br, L);
     }, 80);
   };
   btnRow.appendChild(hintBtn); btnRow.appendChild(checkBtn);
@@ -624,17 +702,16 @@ function addHintAndCheck(btnRow, L, checkFn) {
 
 function handleResult(ok, L) {
   const fb = document.getElementById('feedback');
-  currentProfile.stats.totalAll   = (currentProfile.stats.totalAll||0)   + 1;
-  currentProfile.sessionTotal     = (currentProfile.sessionTotal||0)     + 1;
+  currentProfile.stats.totalAll   = (currentProfile.stats.totalAll||0) + 1;
+  currentProfile.sessionTotal     = (currentProfile.sessionTotal||0)   + 1;
   recordAttempt(G.tH, G.tM, ok);
   if (ok) {
     Audio.play('correct');
-    currentProfile.stats.correctAll   = (currentProfile.stats.correctAll||0)   + 1;
-    currentProfile.sessionCorrect     = (currentProfile.sessionCorrect||0)     + 1;
+    currentProfile.stats.correctAll  = (currentProfile.stats.correctAll||0)  + 1;
+    currentProfile.sessionCorrect    = (currentProfile.sessionCorrect||0)    + 1;
     currentProfile.sessionStreak     = (currentProfile.sessionStreak||0)     + 1;
     currentProfile.stats.bestStreak  = Math.max(currentProfile.stats.bestStreak||0, currentProfile.sessionStreak);
-    currentProfile.stats.perfectRun  = (currentProfile.stats.perfectRun||0) + 1;
-    // Daily
+    currentProfile.stats.perfectRun  = (currentProfile.stats.perfectRun||0)  + 1;
     if (G.dailyDone < G.dailyTotal) {
       G.dailyDone++; currentProfile.dailyDone = G.dailyDone;
       if (G.dailyDone >= G.dailyTotal) launchConfetti();
@@ -646,27 +723,25 @@ function handleResult(ok, L) {
     currentProfile.stats.bestStreak = Math.max(currentProfile.stats.bestStreak||0, currentProfile.sessionStreak||0);
     currentProfile.sessionStreak = 0;
     currentProfile.stats.perfectRun = 0;
-    fb.className='fb-error'; fb.textContent=L.fb.wrong;
+    // Only overwrite if checkFn hasn't already set an explanation
+    if (!fb.textContent || fb.className !== 'fb-error') {
+      fb.className='fb-error'; fb.textContent=L.fb.wrong;
+    }
   }
-  // Check badges
   const prevLen = (currentProfile.earned||[]).length;
   currentProfile.earned = Badges.check(currentProfile.stats, currentProfile.earned||[], settings.lang, showBadgeToast);
   if (currentProfile.earned.length > prevLen) Badges.render(currentProfile.earned, settings.lang);
-  renderScores();
-  renderPathRow();
-  renderDailyBanner();
-  // Save (convert sets to arrays)
+  renderScores(); renderPathRow(); renderDailyBanner();
   currentProfile.stats.modesUsed = [...(currentProfile.stats.modesUsed||new Set())];
   currentProfile.stats.langsUsed = [...(currentProfile.stats.langsUsed||new Set())];
   saveCurrentProfile();
-  // Restore sets
   currentProfile.stats.modesUsed = new Set(currentProfile.stats.modesUsed);
   currentProfile.stats.langsUsed = new Set(currentProfile.stats.langsUsed);
 }
 
 function addNextBtn(btnRow, L) {
   const b=document.createElement('button'); b.className='btn btn-primary'; b.textContent=L.next;
-  b.onclick=()=>{ Audio.play('tick'); newTask(); renderTask(); };
+  b.onclick=()=>{ Audio.play('tick'); newTask(); animateTransition(renderTask); };
   btnRow.appendChild(b);
 }
 
@@ -674,11 +749,9 @@ function newTask() {
   const {h,m}=randTime(G.diff); G.tH=h; G.tM=m;
 }
 
-// ── Service Worker registration ───────────────────────────────────
+// ── Service Worker ────────────────────────────────────────────────
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', ()=>{
-    navigator.serviceWorker.register('sw.js').catch(()=>{});
-  });
+  window.addEventListener('load', ()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
 }
 
 // ── Boot ──────────────────────────────────────────────────────────
