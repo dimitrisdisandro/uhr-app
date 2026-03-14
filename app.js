@@ -987,12 +987,14 @@ function setupDrag() {
 
 // ── Hide helpers ──────────────────────────────────────────────────
 function hideAll() {
-  ['answer-grid','text-task-box','word-area','sliders-wrap'].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display='none'; });
-  // Remove inline number exercise elements
-  ['num-inline-display','num-inline-input'].forEach(id=>{ const el=document.getElementById(id); if(el) el.remove(); });
-  // Also remove any stray divs/inputs added to task-card
-  document.querySelectorAll('#task-card input[type=text]').forEach(el=>el.remove());
-  document.querySelectorAll('#task-card div[style*="font-size:72px"]').forEach(el=>el.remove());
+  // Hide static elements
+  ['answer-grid','text-task-box','word-area','sliders-wrap'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.style.display='none';
+  });
+  // Remove dynamic number elements
+  ['num-inline-display','num-inline-input'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.remove();
+  });
   removeLiveLabel();
   teardownDrag();
 }
@@ -1176,12 +1178,14 @@ function renderTask() {
 
     // Big number display
     const numDisplay = document.createElement('div');
+    numDisplay.id = 'num-inline-display';
     numDisplay.style.cssText = 'font-size:72px;font-weight:700;text-align:center;background:var(--surface);border-radius:var(--radius);padding:1rem;margin-bottom:1rem;color:var(--text);';
     numDisplay.textContent = n;
     document.getElementById('task-card').insertBefore(numDisplay, document.getElementById('feedback'));
 
     // Input field
     const inp = document.createElement('input');
+    inp.id = 'num-inline-input';
     inp.type='text'; inp.autocomplete='off'; inp.autocorrect='off'; inp.spellcheck=false;
     inp.placeholder = L.numPlaceholder;
     inp.style.cssText = 'width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-size:16px;margin-bottom:.875rem;outline:none;background:var(--card);color:var(--text);';
@@ -1222,7 +1226,7 @@ function renderTask() {
         inp.disabled = true;
         saveCurrentProfile(); renderNumStats();
         const nb = document.createElement('button'); nb.className='btn btn-primary'; nb.textContent=L.next;
-        nb.onclick=()=>{ G.currentNum=undefined; newNumTask(); animateTransition(renderTask); };
+        nb.onclick=()=>{ G.currentNum=undefined; hideAll(); newNumTask(); animateTransition(renderTask); };
         btnRow.innerHTML=''; btnRow.appendChild(nb);
       } else {
         Audio.play('wrong');
@@ -1235,7 +1239,7 @@ function renderTask() {
           G.answered = true; inp.disabled = true;
           saveCurrentProfile(); renderNumStats();
           const nb = document.createElement('button'); nb.className='btn btn-primary'; nb.textContent=L.next;
-          nb.onclick=()=>{ G.currentNum=undefined; newNumTask(); animateTransition(renderTask); };
+          nb.onclick=()=>{ G.currentNum=undefined; hideAll(); newNumTask(); animateTransition(renderTask); };
           btnRow.innerHTML=''; btnRow.appendChild(nb);
         } else {
           const left = MAX_TRIES - attempt;
