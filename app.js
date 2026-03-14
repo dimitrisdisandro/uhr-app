@@ -185,7 +185,6 @@ function buildSliders(L, diff, onUpdate) {
   const hSlider = makeSlider(L.sliderHours, 0, 23, G.uH, 1, (v)=>{
     G.uH = v;
     Clock.draw(document.getElementById('clock-svg'), G.uH, G.uM, true, null);
-    updateLiveLabel();
     Audio.play('drag');
   });
   const mSlider = makeSlider(L.sliderMinutes, 0, 55, G.uM, mins.length > 2 ? 5 : 30, (v)=>{
@@ -196,7 +195,6 @@ function buildSliders(L, diff, onUpdate) {
     mSlider.slider.value = best;
     mSlider.valLbl.textContent = best;
     Clock.draw(document.getElementById('clock-svg'), G.uH, G.uM, true, null);
-    updateLiveLabel();
     Audio.play('drag');
   });
 
@@ -682,14 +680,12 @@ function setupDrag() {
     if (G.dragging==='hour') { const nH=Clock.snapH(ang); if(nH!==G.uH){G.uH=nH;Audio.play('drag');} }
     else { const nM=Clock.snapM(ang,G.diff); if(nM!==G.uM){G.uM=nM;Audio.play('drag');} }
     Clock.draw(document.getElementById('clock-svg'), G.uH, G.uM, true, G.dragging);
-    updateLiveLabel();
   };
   const onUp = ()=>{
     if (!G.dragging) return;
     G.dragging = null;
     svg.style.cursor = 'default';
     Clock.draw(document.getElementById('clock-svg'), G.uH, G.uM, true, null);
-    updateLiveLabel();
   };
   svg._onMove = onMove;
   svg._onUp   = onUp;
@@ -775,7 +771,6 @@ function renderTask() {
     document.getElementById('clock-wrap').style.display = 'flex';
     G.uH = (G.tH + 6) % 24; G.uM = 0;
     Clock.draw(document.getElementById('clock-svg'), G.uH, G.uM, true, null);
-    updateLiveLabel();
     setupDrag();
     insertSliders(L, G.diff);
     addHintAndCheck(btnRow, L, ()=>{
@@ -800,7 +795,6 @@ function renderTask() {
     Audio.speak(fmtTimeSpeak(G.tH, G.tM, settings.lang), settings.lang);
     G.uH = (G.tH + 5) % 24; G.uM = 0;
     Clock.draw(document.getElementById('clock-svg'), G.uH, G.uM, true, null);
-    updateLiveLabel();
     setupDrag();
     insertSliders(L, G.diff);
     addHintAndCheck(btnRow, L, ()=>{
