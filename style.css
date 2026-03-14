@@ -173,7 +173,28 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .lang-btn { padding: 6px 12px; border-radius: 18px; border: 1.5px solid var(--border); background: var(--card); cursor: pointer; font-size: 12px; color: var(--muted); font-weight: 500; transition: all .15s; }
 .lang-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); }
 
-/* Confetti */
+/* Disclaimer overlay */
+#disclaimer-overlay {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.55); z-index: 2000;
+  display: flex; align-items: center; justify-content: center;
+  padding: 1.5rem;
+}
+#disclaimer-overlay.hidden { display: none; }
+#disclaimer-box {
+  background: var(--card); border-radius: var(--radius);
+  padding: 2rem 1.5rem; max-width: 380px; width: 100%;
+  text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+#disclaimer-icon { font-size: 48px; margin-bottom: .75rem; }
+#disclaimer-title { font-size: 22px; font-weight: 700; color: var(--primary); margin-bottom: 1rem; }
+#disclaimer-text { font-size: 13px; color: var(--muted); line-height: 1.7; margin-bottom: 1.5rem; }
+#disclaimer-btn {
+  background: var(--primary); color: #fff; border: none;
+  border-radius: var(--radius-sm); padding: 11px 32px;
+  font-size: 14px; font-weight: 600; cursor: pointer; width: 100%;
+}
+#disclaimer-btn:hover { opacity: .9; }
 #celebrate { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 999; display: none; }
 .confetti { position: absolute; width: 10px; height: 10px; border-radius: 2px; animation: fall 1s ease-in forwards; }
 @keyframes fall { 0% { transform: translateY(-20px) rotate(0deg); opacity: 1; } 100% { transform: translateY(100vh) rotate(720deg); opacity: 0; } }

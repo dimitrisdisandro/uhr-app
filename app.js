@@ -970,6 +970,54 @@ function newTask() {
   const {h,m}=randTime(G.diff); G.tH=h; G.tM=m;
 }
 
+// ── Disclaimer (shown once) ───────────────────────────────────────
+function initDisclaimer() {
+  const overlay = document.getElementById('disclaimer-overlay');
+  const btn     = document.getElementById('disclaimer-btn');
+  const text    = document.getElementById('disclaimer-text');
+  const title   = document.getElementById('disclaimer-title');
+
+  const lang = settings.lang || 'de';
+  const texts = {
+    de: {
+      t: 'Stell die Uhr!',
+      b: 'Verstanden',
+      p: 'Diese App wurde für den privaten Gebrauch entwickelt und wird ohne Gewähr bereitgestellt. Sie dient ausschliesslich zu Lernzwecken. Für allfällige Fehler oder Ungenauigkeiten wird keine Haftung übernommen.'
+    },
+    it: {
+      t: "Metti l'orologio!",
+      b: 'Ho capito',
+      p: "Questa app è stata sviluppata per uso privato e viene fornita senza garanzia. È destinata esclusivamente a scopi didattici. Non si assume alcuna responsabilità per eventuali errori o imprecisioni."
+    },
+    en: {
+      t: 'Set the Clock!',
+      b: 'Understood',
+      p: 'This app was developed for private use and is provided without warranty. It is intended for educational purposes only. No liability is accepted for any errors or inaccuracies.'
+    },
+    ja: {
+      t: '時計を合わせよう！',
+      b: '了解',
+      p: 'このアプリは個人使用のために開発されたものであり、保証なしで提供されています。教育目的のみを意図しており、エラーや不正確さについては責任を負いません。'
+    }
+  };
+
+  const t = texts[lang] || texts.de;
+  title.textContent = t.t;
+  text.textContent  = t.p;
+  btn.textContent   = t.b;
+
+  if (Store.get('disclaimer_accepted', false)) {
+    overlay.classList.add('hidden');
+    return;
+  }
+
+  overlay.classList.remove('hidden');
+  btn.onclick = ()=>{
+    Store.set('disclaimer_accepted', true);
+    overlay.classList.add('hidden');
+  };
+}
+
 // ── Service Worker ────────────────────────────────────────────────
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', ()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
@@ -978,5 +1026,6 @@ if ('serviceWorker' in navigator) {
 // ── Boot ──────────────────────────────────────────────────────────
 Audio.setSoundEnabled(settings.sound !== false);
 Audio.setSpeechEnabled(settings.speech !== false);
+initDisclaimer();
 showScreen('profile');
 renderProfileScreen();
