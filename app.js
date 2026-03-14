@@ -514,21 +514,43 @@ function removeLiveLabel() {
 }
 
 // ── Drag setup ────────────────────────────────────────────────────
-function setupDrag() {
+function teardownDrag() {
   const svg = document.getElementById('clock-svg');
+  if (svg && svg._onMove) { document.removeEventListener('mousemove', svg._onMove); document.removeEventListener('touchmove', svg._onMove); svg._onMove = null; }
+  if (svg && svg._onUp)   { document.removeEventListener('mouseup',  svg._onUp);   document.removeEventListener('touchend',  svg._onUp);   svg._onUp   = null; }
+  G.dragging = null;
+}
+
+function setupDrag() {
+  teardownDrag(); // clean up any previous listeners first
+  const svg = document.getElementById('clock-svg');
+  // Only start drag when touch/click originates on a hand handle inside the SVG
   svg.onmousedown = svg.ontouchstart = (e)=>{
-    const t = e.target.closest('[data-hand]'); if(!t) return;
-    e.preventDefault(); G.dragging = t.dataset.hand; svg.style.cursor='grabbing';
+    const t = e.target.closest('[data-hand]');
+    if (!t) return;
+    e.preventDefault();
+    e.stopPropagation();
+    G.dragging = t.dataset.hand;
+    svg.style.cursor = 'grabbing';
   };
   const onMove = (e)=>{
-    if (!G.dragging) return; e.preventDefault();
+    if (!G.dragging) return;
+    e.preventDefault();
     const ang = Clock.getAngle(e);
     if (G.dragging==='hour') { const nH=Clock.snapH(ang); if(nH!==G.uH){G.uH=nH;Audio.play('drag');} }
     else { const nM=Clock.snapM(ang,G.diff); if(nM!==G.uM){G.uM=nM;Audio.play('drag');} }
     Clock.draw(document.getElementById('clock-svg'), G.uH, G.uM, true, G.dragging);
     updateLiveLabel();
   };
-  const onUp = ()=>{ G.dragging=null; document.getElementById('clock-svg').style.cursor='default'; Clock.draw(document.getElementById('clock-svg'),G.uH,G.uM,true,null); updateLiveLabel(); };
+  const onUp = ()=>{
+    if (!G.dragging) return;
+    G.dragging = null;
+    svg.style.cursor = 'default';
+    Clock.draw(document.getElementById('clock-svg'), G.uH, G.uM, true, null);
+    updateLiveLabel();
+  };
+  svg._onMove = onMove;
+  svg._onUp   = onUp;
   document.addEventListener('mousemove', onMove);
   document.addEventListener('mouseup', onUp);
   document.addEventListener('touchmove', onMove, {passive:false});
@@ -539,6 +561,7 @@ function setupDrag() {
 function hideAll() {
   ['answer-grid','text-task-box','word-area'].forEach(id=>document.getElementById(id).style.display='none');
   removeLiveLabel();
+  teardownDrag();
 }
 
 // ── Render Task ───────────────────────────────────────────────────
@@ -569,12 +592,24 @@ function renderTask() {
       b.onclick=()=>{
         if (G.answered) return;
         G.answered=true; stopTimer(); Audio.play('tick');
-        Audio.speak(opt, settings.lang); // speak chosen answer
         const ok = opt===fmtTime(G.tH,G.tM,settings.lang);
+        const correctTime = fmtTime(G.tH, G.tM, settings.lang);
+        // Speak: chosen answer if correct, correction phrase if wrong
+        if (ok) {
+          Audio.speak(correctTime, settings.lang);
+        } else {
+          const phrases = {
+            de: `Das ist nicht ${opt}. Die richtige Antwort wäre ${correctTime}.`,
+            it: `Non è ${opt}. La risposta corretta è ${correctTime}.`,
+            en: `That's not ${opt}. The correct answer is ${correctTime}.`,
+            ja: `${opt}ではありません。正しい答えは${correctTime}です。`
+          };
+          Audio.speak(phrases[settings.lang] || phrases.de, settings.lang);
+        }
         setTimeout(()=>{
           handleResult(ok, L);
           b.classList.add(ok?'correct':'wrong');
-          if (!ok) ag.querySelectorAll('.answer-btn').forEach(x=>{ if(x.textContent===fmtTime(G.tH,G.tM,settings.lang))x.classList.add('correct'); });
+          if (!ok) ag.querySelectorAll('.answer-btn').forEach(x=>{ if(x.textContent===correctTime)x.classList.add('correct'); });
           ag.querySelectorAll('.answer-btn').forEach(x=>x.disabled=true);
           addNextBtn(btnRow, L);
         }, 80);
@@ -669,8 +704,20 @@ function renderTask() {
     checkBtn.onclick=()=>{
       if (G.answered||G.wordAnswer.length===0) return;
       G.answered=true; wa.classList.add('answered'); Audio.play('tick'); stopTimer();
-      Audio.speak(G.wordAnswer.join(' '), settings.lang); // speak assembled sentence
       const ok = G.wordAnswer.join(' ')===frag.correct.join(' ');
+      const correctTime = fmtTime(G.tH, G.tM, settings.lang);
+      if (ok) {
+        Audio.speak(correctTime, settings.lang);
+      } else {
+        const chosen = G.wordAnswer.join(' ');
+        const phrases = {
+          de: `Das ist nicht ${chosen}. Die richtige Antwort wäre ${correctTime}.`,
+          it: `Non è ${chosen}. La risposta corretta è ${correctTime}.`,
+          en: `That's not ${chosen}. The correct answer is ${correctTime}.`,
+          ja: `${chosen}ではありません。正しい答えは${correctTime}です。`
+        };
+        Audio.speak(phrases[settings.lang] || phrases.de, settings.lang);
+      }
       setTimeout(()=>{
         handleResult(ok, L);
         if (!ok) { const fb=document.getElementById('feedback'); fb.textContent += '  ✓ '+frag.correct.join(' '); }
