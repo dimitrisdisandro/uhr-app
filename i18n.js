@@ -177,6 +177,7 @@ const LANGS = {
     dailyText:'Tagesaufgabe:', on:'EIN', off:'AUS', pathLabel:'Lernpfad',
     sliderHours:'Stunden', sliderMinutes:'Minuten',
     modeDetails:'Details pro Modus',
+    localStorageHint:'⚠️ Dein Fortschritt wird lokal auf diesem Gerät gespeichert. Beim Löschen des Browser-Caches oder der App-Daten gehen die Statistiken verloren.',
     fb:{ correct:'Super gemacht! 🌟', wrong:'Fast! Versuch es nochmal.', hint:'Kurzer Zeiger = Stunden, langer Zeiger = Minuten.' }
   },
   it: {
@@ -198,6 +199,7 @@ const LANGS = {
     dailyText:'Compito del giorno:', on:'SÌ', off:'NO', pathLabel:'Percorso',
     sliderHours:'Ore', sliderMinutes:'Minuti',
     modeDetails:'Dettagli per modalità',
+    localStorageHint:'⚠️ I tuoi progressi vengono salvati localmente su questo dispositivo. Se cancelli la cache del browser o i dati dell\'app, le statistiche andranno perse.',
     fb:{ correct:'Bravo! 🌟', wrong:'Quasi! Riprova.', hint:'Lancetta corta = ore, lunga = minuti.' }
   },
   en: {
@@ -219,6 +221,7 @@ const LANGS = {
     dailyText:'Daily task:', on:'ON', off:'OFF', pathLabel:'Learning path',
     sliderHours:'Hours', sliderMinutes:'Minutes',
     modeDetails:'Details per mode',
+    localStorageHint:'⚠️ Your progress is saved locally on this device. If you clear the browser cache or app data, your statistics will be lost.',
     fb:{ correct:'Well done! 🌟', wrong:'Almost! Try again.', hint:'Short hand = hours, long hand = minutes.' }
   },
   ja: {
@@ -240,6 +243,7 @@ const LANGS = {
     dailyText:'今日の課題：', on:'オン', off:'オフ', pathLabel:'学習パス',
     sliderHours:'時', sliderMinutes:'分',
     modeDetails:'モード別詳細',
+    localStorageHint:'⚠️ 進捗はこのデバイスにローカルに保存されます。ブラウザのキャッシュやアプリデータを削除すると、統計が失われます。',
     fb:{ correct:'よくできました！🌟', wrong:'惜しい！もう一度。', hint:'短い針が時、長い針が分です。' }
   }
 };

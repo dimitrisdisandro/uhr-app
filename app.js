@@ -526,7 +526,10 @@ document.getElementById('btn-add-profile').onclick = ()=>{
   const cancelBtn = document.createElement('button'); cancelBtn.className = 'btn'; cancelBtn.textContent = '×';
   cancelBtn.onclick = ()=>{ form.remove(); newProfileForm=null; };
   btns.appendChild(cancelBtn); btns.appendChild(saveBtn);
-  form.appendChild(inp); form.appendChild(picker); form.appendChild(btns);
+  const hint = document.createElement('p');
+  hint.style.cssText = 'font-size:11px;color:var(--muted);line-height:1.5;margin-top:8px;';
+  hint.textContent = L.localStorageHint;
+  form.appendChild(inp); form.appendChild(picker); form.appendChild(btns); form.appendChild(hint);
   document.getElementById('profile-list').appendChild(form);
   inp.focus();
 };
