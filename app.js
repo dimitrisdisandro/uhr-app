@@ -86,6 +86,15 @@ function randTime(diff) {
   return { h: Math.floor(Math.random()*24), m: mins[Math.floor(Math.random()*mins.length)] };
 }
 
+// ── Mode stats helpers ────────────────────────────────────────────
+function getModeStats(lang, mode) {
+  if (!currentProfile) return { total:0, correct:0 };
+  const ms = currentProfile.modeStats = currentProfile.modeStats || {};
+  const key = `${lang}_${mode}`;
+  if (!ms[key]) ms[key] = { total:0, correct:0 };
+  return ms[key];
+}
+
 // ── Language stats helpers ────────────────────────────────────────
 function getLangStats(lang) {
   if (!currentProfile) return { total:0, correct:0, streak:0, bestStreak:0 };
@@ -399,6 +408,7 @@ function renderProfileList() {
   profiles.forEach((p, i)=>{
     const card = document.createElement('div'); card.className = 'profile-card';
     card.style.flexDirection = 'column'; card.style.alignItems = 'stretch'; card.style.gap = '10px';
+
     // Top row: avatar + name + delete
     const topRow = document.createElement('div');
     topRow.style.cssText = 'display:flex;align-items:center;gap:12px;';
@@ -406,28 +416,79 @@ function renderProfileList() {
     av.style.background = profileColor(i); av.textContent = p.emoji || '🧒';
     const info = document.createElement('div'); info.className = 'profile-info';
     const name = document.createElement('div'); name.className = 'profile-name'; name.textContent = p.name;
-    const totalCorrect = p.stats?.correctAll || 0;
-    const totalAll = p.stats?.totalAll || 0;
     const sub = document.createElement('div'); sub.className = 'profile-stats';
-    sub.textContent = `${totalCorrect}/${totalAll} ✓ gesamt  🔥${p.stats?.dailyStreak||0}`;
+    sub.textContent = `${p.stats?.correctAll||0}/${p.stats?.totalAll||0} ✓ gesamt  🔥${p.stats?.dailyStreak||0}`;
     info.appendChild(name); info.appendChild(sub);
     const del = document.createElement('button'); del.className = 'profile-del'; del.textContent = '×';
     del.onclick = (e)=>{ e.stopPropagation(); if(confirm('Profil löschen?')){profiles.splice(i,1);saveProfiles(profiles);renderProfileList();renderHighscore();} };
     topRow.appendChild(av); topRow.appendChild(info); topRow.appendChild(del);
-    // Language stats row
+
+    // Language summary row
     const langRow = document.createElement('div');
     langRow.style.cssText = 'display:grid;grid-template-columns:repeat(4,1fr);gap:6px;';
     Object.entries(LANGS).forEach(([k, Lv])=>{
       const ls = (p.langStats && p.langStats[k]) || { total:0, correct:0, bestStreak:0 };
+      const pct = ls.total > 0 ? Math.round(ls.correct/ls.total*100) : 0;
       const cell = document.createElement('div');
       cell.style.cssText = 'background:var(--surface);border-radius:var(--radius-sm);padding:6px 4px;text-align:center;';
       cell.innerHTML = `<div style="font-size:16px">${Lv.flag}</div>
         <div style="font-size:11px;font-weight:600;color:var(--text)">${ls.correct}/${ls.total}</div>
-        <div style="font-size:10px;color:var(--muted)">🔥${ls.bestStreak||0}</div>`;
+        <div style="font-size:10px;color:var(--muted)">${ls.total>0?pct+'%':'—'} 🔥${ls.bestStreak||0}</div>`;
       langRow.appendChild(cell);
     });
-    card.appendChild(topRow); card.appendChild(langRow);
-    card.onclick = (e)=>{ if(e.target.closest('.profile-del')) return; Audio.play('tick'); selectProfile(i); };
+
+    // Mode stats toggle
+    const modeToggle = document.createElement('button');
+    modeToggle.style.cssText = 'background:none;border:none;cursor:pointer;font-size:12px;color:var(--primary);font-weight:600;text-align:left;padding:0;';
+    modeToggle.textContent = '▶ Details pro Modus';
+
+    const modeTable = document.createElement('div');
+    modeTable.style.display = 'none';
+    modeTable.style.cssText = 'display:none;overflow-x:auto;';
+
+    // Build table: rows = modes, cols = languages
+    const modeNames = LANGS['de'].modes; // always use DE mode names as row headers
+    const table = document.createElement('table');
+    table.style.cssText = 'width:100%;border-collapse:collapse;font-size:11px;';
+
+    // Header row
+    const thead = document.createElement('tr');
+    thead.innerHTML = `<th style="text-align:left;padding:4px 6px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border);">Modus</th>`;
+    Object.entries(LANGS).forEach(([k,Lv])=>{
+      thead.innerHTML += `<th style="text-align:center;padding:4px 4px;color:var(--muted);font-weight:600;border-bottom:1px solid var(--border);">${Lv.flag}</th>`;
+    });
+    table.appendChild(thead);
+
+    // Data rows
+    [0,1,2,3].forEach(modeIdx=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td style="padding:4px 6px;color:var(--text);font-weight:500;border-bottom:1px solid var(--border);white-space:nowrap;">${modeNames[modeIdx]}</td>`;
+      Object.keys(LANGS).forEach(k=>{
+        const key = `${k}_${modeIdx}`;
+        const ms = (p.modeStats && p.modeStats[key]) || { total:0, correct:0 };
+        const pct = ms.total > 0 ? Math.round(ms.correct/ms.total*100) : null;
+        const color = pct === null ? 'var(--muted)' : pct >= 80 ? 'var(--success)' : pct >= 50 ? 'var(--warm)' : 'var(--danger)';
+        tr.innerHTML += `<td style="text-align:center;padding:4px 4px;border-bottom:1px solid var(--border);">
+          <span style="font-weight:600;color:${color}">${ms.total>0?ms.correct+'/'+ms.total:'—'}</span>
+          ${pct!==null?`<br><span style="color:var(--muted);font-size:10px">${pct}%</span>`:''}
+        </td>`;
+      });
+      table.appendChild(tr);
+    });
+    modeTable.appendChild(table);
+
+    modeToggle.onclick = (e)=>{
+      e.stopPropagation();
+      const open = modeTable.style.display !== 'none';
+      modeTable.style.display = open ? 'none' : 'block';
+      modeToggle.textContent = (open ? '▶' : '▼') + ' Details pro Modus';
+    };
+
+    card.appendChild(topRow);
+    card.appendChild(langRow);
+    card.appendChild(modeToggle);
+    card.appendChild(modeTable);
+    card.onclick = (e)=>{ if(e.target.closest('.profile-del')||e.target===modeToggle) return; Audio.play('tick'); selectProfile(i); };
     list.insertBefore(card, list.firstChild);
   });
 }
@@ -627,6 +688,7 @@ function renderSettingsScreen() {
       currentProfile.stats={totalAll:0,correctAll:0,bestStreak:0,perfectRun:0,dailyStreak:0,lastDay:'',modesUsed:[],langsUsed:[]};
       currentProfile.earned=[]; currentProfile.weights={};
       currentProfile.langStats={}; currentProfile.langWeights={}; currentProfile.langSession={};
+      currentProfile.modeStats={};
       saveCurrentProfile(); showScreen('app'); renderApp();
     }
   };
@@ -900,12 +962,15 @@ function handleResult(ok, L) {
   const lang = settings.lang;
   const ls = getLangStats(lang);
   const sess = getLangSession(lang);
+  const ms = getModeStats(lang, G.mode);
 
   // Global stats
   currentProfile.stats.totalAll   = (currentProfile.stats.totalAll||0) + 1;
   // Per-language stats
   ls.total = (ls.total||0) + 1;
   sess.total = (sess.total||0) + 1;
+  // Per-mode stats
+  ms.total = (ms.total||0) + 1;
 
   recordAttempt(G.tH, G.tM, ok);
 
@@ -920,6 +985,8 @@ function handleResult(ok, L) {
     ls.bestStreak  = Math.max(ls.bestStreak||0, ls.streak);
     sess.correct   = (sess.correct||0)   + 1;
     sess.streak    = (sess.streak||0)    + 1;
+    // Per-mode
+    ms.correct = (ms.correct||0) + 1;
     // Global streak (for badges)
     currentProfile.stats.bestStreak = Math.max(currentProfile.stats.bestStreak||0, ls.streak);
     if (G.dailyDone < G.dailyTotal) {
