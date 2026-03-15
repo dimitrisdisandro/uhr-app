@@ -329,11 +329,16 @@ function showNumPopup(countInBalance = false) {
 
   function buildCheckBtn() {
     btns.innerHTML = '';
+    const skipBtn = document.createElement('button');
+    skipBtn.className = 'btn'; skipBtn.textContent = '×';
+    skipBtn.title = 'Überspringen';
+    skipBtn.onclick = ()=>{ overlay.classList.add('hidden'); G.answered = false; renderNumStats(); };
     const checkBtn = document.createElement('button');
     checkBtn.className = 'btn btn-primary'; checkBtn.textContent = L.check;
     checkBtn.style.flex = '1';
     checkBtn.onclick = checkAnswer;
     inp.onkeydown = (e)=>{ if(e.key==='Enter') checkAnswer(); };
+    btns.appendChild(skipBtn);
     btns.appendChild(checkBtn);
   }
 
@@ -342,7 +347,7 @@ function showNumPopup(countInBalance = false) {
     const nextBtn = document.createElement('button');
     nextBtn.className = 'btn btn-primary'; nextBtn.textContent = L.next;
     nextBtn.style.flex = '1';
-    nextBtn.onclick = ()=>{ overlay.classList.add('hidden'); G.answered = false; };
+    nextBtn.onclick = ()=>{ overlay.classList.add('hidden'); G.answered = false; renderNumStats(); };
     btns.appendChild(nextBtn);
   }
 
@@ -479,22 +484,28 @@ function showNumPopupForN(n) {
   function updateCell(ok) {
     const cell = document.getElementById(`num-cell-${n}`);
     if (!cell) return;
-    if (ok) {
-      cell.style.background = 'var(--success-light)';
-      cell.querySelector('.num-stat-s').textContent = `${ns.perNum[n].total}× 🟢`;
-    } else {
-      cell.style.background = 'var(--danger-light)';
-      cell.querySelector('.num-stat-s').textContent = `${ns.perNum[n].total}× 🔴`;
-    }
+    const s = ns.perNum[n] || {};
+    const c1n = s.correct1||0, c2n = s.correct2||0, c3n = s.correct3||0;
+    let bg, dot;
+    if (c1n > 0) { bg = 'var(--success-light)'; dot = '🟢'; }
+    else if (c2n > 0 || c3n > 0) { bg = 'var(--warm-light)'; dot = '🟡'; }
+    else { bg = 'var(--danger-light)'; dot = '🔴'; }
+    cell.style.background = bg;
+    cell.querySelector('.num-stat-s').textContent = `${s.total||0}× ${dot}`;
   }
 
   function buildCheckBtn() {
     btns.innerHTML = '';
+    const skipBtn = document.createElement('button');
+    skipBtn.className = 'btn'; skipBtn.textContent = '×';
+    skipBtn.title = 'Überspringen';
+    skipBtn.onclick = ()=>{ overlay.classList.add('hidden'); G.answered = false; renderNumStats(); };
     const checkBtn = document.createElement('button');
     checkBtn.className = 'btn btn-primary'; checkBtn.textContent = L.check;
     checkBtn.style.flex = '1';
     checkBtn.onclick = checkAnswer;
     inp.onkeydown = (e)=>{ if(e.key==='Enter') checkAnswer(); };
+    btns.appendChild(skipBtn);
     btns.appendChild(checkBtn);
   }
 
