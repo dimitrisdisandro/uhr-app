@@ -27,7 +27,7 @@ let currentProfileIdx = -1;
 
 // ── Game state ────────────────────────────────────────────────────
 let G = {
-  mode: 0, diff: 0,
+  mode: 0, diff: 2,
   tH: 3, tM: 0,
   uH: 6, uM: 0,
   answered: false,
@@ -417,7 +417,6 @@ function renderNumStats() {
   sec.style.display = 'block';
   lbl.textContent = L.numStatsTitle;
 
-  // Total summary
   const c1 = Object.values(ns.perNum||{}).reduce((s,v)=>s+(v.correct1||0),0);
   const c2 = Object.values(ns.perNum||{}).reduce((s,v)=>s+(v.correct2||0),0);
   const c3 = Object.values(ns.perNum||{}).reduce((s,v)=>s+(v.correct3||0),0);
@@ -429,21 +428,128 @@ function renderNumStats() {
     const s = ns.perNum[n] || { total:0 };
     const c1n = s.correct1||0, c2n = s.correct2||0, c3n = s.correct3||0, fn = s.failed||0;
     const tried = s.total || 0;
-    // Color: green if mostly correct1, yellow if correct2/3, red if failed
-    let dot = '—';
-    let bg = 'var(--surface)';
+    let dot = '—', bg = 'var(--surface)';
     if (tried > 0) {
       if (c1n > 0) { dot = '🟢'; bg = 'var(--success-light)'; }
       else if (c2n > 0 || c3n > 0) { dot = '🟡'; bg = 'var(--warm-light)'; }
       else { dot = '🔴'; bg = 'var(--danger-light)'; }
     }
-    const cell = document.createElement('div'); cell.className = 'num-stat-cell';
-    cell.style.background = bg;
+    const cell = document.createElement('div');
+    cell.className = 'num-stat-cell';
+    cell.id = `num-cell-${n}`;
+    cell.style.cssText = `background:${bg};cursor:pointer;transition:transform .1s,box-shadow .1s;`;
     cell.innerHTML = `<div class="num-stat-n">${n}</div>
       <div class="num-stat-s">${tried>0?tried+'×':''} ${dot}</div>`;
-    cell.title = tried > 0 ? `${n}: ${tried}× — 🟢${c1n} 🟡${c2n} 🟠${c3n} 🔴${fn}` : `${n}: noch nicht geübt`;
+    cell.title = tried > 0 ? `${n}: ${tried}× — 🟢${c1n} 🟡${c2n} 🟠${c3n} 🔴${fn}` : `${n}: noch nicht geübt — klicken zum Üben`;
+    cell.onmouseenter = ()=>{ cell.style.transform='scale(1.08)'; cell.style.boxShadow='0 2px 8px rgba(0,0,0,.12)'; };
+    cell.onmouseleave = ()=>{ cell.style.transform=''; cell.style.boxShadow=''; };
+    cell.onclick = ()=>showNumPopupForN(n);
     grid.appendChild(cell);
   }
+}
+
+// Show number popup for a specific number (from stats click — no balance counting)
+function showNumPopupForN(n) {
+  const L = LANGS[settings.lang];
+  const correct = (NUM_WORDS[settings.lang]||NUM_WORDS.de)[n].toLowerCase();
+  const overlay = document.getElementById('num-popup-overlay');
+  const fb = document.getElementById('num-popup-feedback');
+  const inp = document.getElementById('num-popup-input');
+  const btns = document.getElementById('num-popup-btns');
+
+  document.getElementById('num-popup-title').textContent = L.numTask(n).replace('?','! 🎯');
+  document.getElementById('num-popup-sub').textContent = L.numSub();
+  document.getElementById('num-popup-number').textContent = n;
+  inp.value = ''; inp.disabled = false; inp.placeholder = L.numPlaceholder;
+  fb.className = 'fb-neutral'; fb.textContent = '';
+  btns.innerHTML = '';
+  overlay.classList.remove('hidden');
+
+  const MAX_TRIES = 3;
+  let attempt = 0;
+  const ns = getNumStats();
+  if (!ns.perNum[n]) ns.perNum[n] = { total:0, correct1:0, correct2:0, correct3:0, failed:0 };
+  ns.total = (ns.total||0) + 1;
+  ns.perNum[n].total++;
+  let statsRecorded = false;
+
+  function updateCell(ok) {
+    const cell = document.getElementById(`num-cell-${n}`);
+    if (!cell) return;
+    if (ok) {
+      cell.style.background = 'var(--success-light)';
+      cell.querySelector('.num-stat-s').textContent = `${ns.perNum[n].total}× 🟢`;
+    } else {
+      cell.style.background = 'var(--danger-light)';
+      cell.querySelector('.num-stat-s').textContent = `${ns.perNum[n].total}× 🔴`;
+    }
+  }
+
+  function buildCheckBtn() {
+    btns.innerHTML = '';
+    const checkBtn = document.createElement('button');
+    checkBtn.className = 'btn btn-primary'; checkBtn.textContent = L.check;
+    checkBtn.style.flex = '1';
+    checkBtn.onclick = checkAnswer;
+    inp.onkeydown = (e)=>{ if(e.key==='Enter') checkAnswer(); };
+    btns.appendChild(checkBtn);
+  }
+
+  function buildCloseBtn() {
+    btns.innerHTML = '';
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'btn btn-primary'; closeBtn.textContent = L.next;
+    closeBtn.style.flex = '1';
+    closeBtn.onclick = ()=>{ overlay.classList.add('hidden'); renderNumStats(); };
+    btns.appendChild(closeBtn);
+  }
+
+  function checkAnswer() {
+    const val = inp.value.trim().toLowerCase();
+    if (!val) { inp.focus(); return; }
+    attempt++;
+    Audio.play('tick');
+    const ok = val === correct;
+
+    if (ok) {
+      if (!statsRecorded) {
+        statsRecorded = true;
+        ns.perNum[n][`correct${Math.min(attempt,3)}`]++;
+        if (attempt === 1) ns.correct = (ns.correct||0) + 1;
+      }
+      Audio.play('correct');
+      fb.className = 'fb-success';
+      fb.textContent = L.fb.correct + (attempt > 1 ? ` (${attempt}. Versuch)` : '');
+      Audio.speak(correct, settings.lang);
+      G.answered = true; inp.disabled = true;
+      updateCell(true);
+      saveCurrentProfile();
+      buildCloseBtn();
+    } else {
+      Audio.play('wrong');
+      if (attempt >= MAX_TRIES) {
+        if (!statsRecorded) { statsRecorded = true; ns.perNum[n].failed++; }
+        const phrases={de:`Nicht geschafft. Richtig: ${correct}`,it:`Non ce l'hai fatta. Corretto: ${correct}`,en:`Not managed. Correct: ${correct}`,ja:`残念。正解：${correct}`};
+        fb.className='fb-error'; fb.textContent = phrases[settings.lang]||phrases.de;
+        Audio.speak(phrases[settings.lang]||phrases.de, settings.lang);
+        inp.disabled = true;
+        updateCell(false);
+        saveCurrentProfile();
+        buildCloseBtn();
+      } else {
+        const left = MAX_TRIES - attempt;
+        const msgs={de:['Noch nicht — versuch es nochmal!','Fast! Ein letzter Versuch.'],it:['Non ancora — riprova!','Quasi! Un ultimo tentativo.'],en:['Not quite — try again!','Almost! One last try.'],ja:['もう少し！','最後の挑戦！']};
+        fb.className='fb-error'; fb.textContent = (msgs[settings.lang]||msgs.de)[attempt-1];
+        document.getElementById('num-popup-sub').textContent = `✏️ ${correct} — ${
+          {de:`noch ${left} Versuch${left===1?'':'e'}`,it:`ancora ${left} tentativ${left===1?'o':'i'}`,en:`${left} tr${left===1?'y':'ies'} left`,ja:`あと${left}回`}[settings.lang]||`${left} left`}`;
+        inp.value=''; inp.focus();
+        buildCheckBtn();
+      }
+    }
+  }
+
+  buildCheckBtn();
+  setTimeout(()=>inp.focus(), 100);
 }
 function launchConfetti() {
   const cel = document.getElementById('celebrate');
@@ -795,7 +901,12 @@ function selectProfile(idx) {
   currentProfile.balance     = currentProfile.balance     || { counts:[0,0,0,0,0], round:1 };
   currentProfile.langSession = {};
   G.mode = currentProfile.lastMode || 0;
-  G.diff = currentProfile.lastDiff || 0;
+  G.diff = currentProfile.lastDiff !== undefined ? currentProfile.lastDiff : 2; // default: Schwer
+  // If saved mode is locked, redirect to first free mode
+  if (isModeLocked(G.mode)) {
+    G.mode = getFirstFreeMode();
+    currentProfile.lastMode = G.mode;
+  }
   checkDaily();
   showScreen('app');
   renderApp();
@@ -829,9 +940,15 @@ function renderModeTabs() {
     b2.className = 'mode-tab' + (i===G.mode?' active':'') + (locked?' mode-tab-locked':'');
     b2.style.position = 'relative';
     b2.innerHTML = `${locked?'🔒 ':''}${m}<br><span style="font-size:10px;opacity:.7">${count}/${BALANCE_MAX}</span>`;
-    b2.disabled = locked && i !== G.mode;
+    b2.disabled = locked;
     b2.onclick = ()=>{
-      if (locked) return;
+      if (locked) {
+        const msgs={de:'🔒 Diese Übung ist gesperrt!',it:'🔒 Esercizio bloccato!',en:'🔒 This exercise is locked!',ja:'🔒 このモードはロック中！'};
+        const toast=document.getElementById('badge-toast');
+        toast.textContent=msgs[settings.lang]||msgs.de; toast.style.background='var(--danger)'; toast.style.display='block';
+        setTimeout(()=>{toast.style.display='none';toast.style.background='';},2000);
+        return;
+      }
       Audio.play('tick'); G.mode=i; currentProfile.lastMode=i; saveCurrentProfile();
       if (i === 4) { renderTask(); renderModeTabs(); }
       else { newTask(); animateTransition(renderTask); renderModeTabs(); }
@@ -1303,7 +1420,11 @@ function renderTask() {
         inp.disabled = true;
         saveCurrentProfile(); renderNumStats();
         const nb = document.createElement('button'); nb.className='btn btn-primary'; nb.textContent=L.next;
-        nb.onclick=()=>{ recordModePlay(4); G.currentNum=undefined; hideAll(); newNumTask(); animateTransition(renderTask); renderModeTabs(); };
+        nb.onclick=()=>{
+          recordModePlay(4);
+          if (isModeLocked(4)) { G.mode = getFirstFreeMode(); currentProfile.lastMode = G.mode; saveCurrentProfile(); }
+          G.currentNum=undefined; hideAll(); newNumTask(); animateTransition(renderTask); renderModeTabs();
+        };
         btnRow.innerHTML=''; btnRow.appendChild(nb);
       } else {
         Audio.play('wrong');
@@ -1316,7 +1437,11 @@ function renderTask() {
           G.answered = true; inp.disabled = true;
           saveCurrentProfile(); renderNumStats();
           const nb = document.createElement('button'); nb.className='btn btn-primary'; nb.textContent=L.next;
-          nb.onclick=()=>{ recordModePlay(4); G.currentNum=undefined; hideAll(); newNumTask(); animateTransition(renderTask); renderModeTabs(); };
+          nb.onclick=()=>{
+            recordModePlay(4);
+            if (isModeLocked(4)) { G.mode = getFirstFreeMode(); currentProfile.lastMode = G.mode; saveCurrentProfile(); }
+            G.currentNum=undefined; hideAll(); newNumTask(); animateTransition(renderTask); renderModeTabs();
+          };
           btnRow.innerHTML=''; btnRow.appendChild(nb);
         } else {
           const left = MAX_TRIES - attempt;
@@ -1418,18 +1543,31 @@ function handleResult(ok, L) {
   currentProfile.stats.langsUsed = new Set(currentProfile.stats.langsUsed);
 }
 
+function getFirstFreeMode() {
+  for (let i = 0; i < 5; i++) {
+    if (!isModeLocked(i)) return i;
+  }
+  return 0; // all unlocked after reset
+}
+
 function addNextBtn(btnRow, L) {
   const b=document.createElement('button'); b.className='btn btn-primary'; b.textContent=L.next;
   b.onclick=()=>{
     Audio.play('tick');
-    // Record balance play for clock modes (not triggered from popup)
+    // Record balance play for clock modes
     if (G.mode < 4) recordModePlay(G.mode);
+    // After recording, check if current mode is now locked → auto-switch
+    if (isModeLocked(G.mode)) {
+      G.mode = getFirstFreeMode();
+      currentProfile.lastMode = G.mode;
+      saveCurrentProfile();
+    }
     numExerciseCounter++;
     if (numExerciseCounter >= 5) {
       numExerciseCounter = 0;
       newTask();
       animateTransition(renderTask);
-      setTimeout(()=>showNumPopup(false), 400); // false = don't count in balance
+      setTimeout(()=>showNumPopup(false), 400);
     } else {
       newTask();
       animateTransition(renderTask);
