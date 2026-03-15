@@ -27,6 +27,7 @@ const NUM_IT_12 = ['dodici','una','due','tre','quattro','cinque','sei','sette','
 
 // Normalize input: lowercase + replace ß with ss (Swiss German)
 function normalizeInput(s) { return s.trim().toLowerCase().replace(/ß/g, 'ss'); }
+function h12(h) { return h % 12 === 0 ? 12 : h % 12; }
 function nextH12(h) { return h12(h) % 12 + 1; }
 // For 24h: next hour wraps at 24
 function nextH24(h) { return (h + 1) % 24; }
