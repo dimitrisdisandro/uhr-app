@@ -230,6 +230,48 @@ function withUhr(timeStr, lang) {
 // ── Number exercise ───────────────────────────────────────────────
 let numExerciseCounter = 0; // counts clock tasks since last number popup
 
+const BALANCE_MAX = 10; // max times a mode can be done before it's locked
+
+function getBalanceStats() {
+  if (!currentProfile) return {};
+  currentProfile.balance = currentProfile.balance || { counts: [0,0,0,0,0], round: 1 };
+  return currentProfile.balance;
+}
+
+function isModeLocked(modeIdx) {
+  const b = getBalanceStats();
+  return b.counts[modeIdx] >= BALANCE_MAX;
+}
+
+function recordModePlay(modeIdx) {
+  const b = getBalanceStats();
+  b.counts[modeIdx] = (b.counts[modeIdx]||0) + 1;
+  // Check if all modes reached BALANCE_MAX → reset
+  if (b.counts.every(c => c >= BALANCE_MAX)) {
+    b.counts = [0,0,0,0,0];
+    b.round = (b.round||1) + 1;
+    showBalanceResetToast();
+  }
+  saveCurrentProfile();
+}
+
+function showBalanceResetToast() {
+  const toast = document.getElementById('badge-toast');
+  const L = LANGS[settings.lang];
+  const msgs = {
+    de: '🎉 Runde abgeschlossen! Alle Übungen frei.',
+    it: '🎉 Round completato! Tutti gli esercizi disponibili.',
+    en: '🎉 Round complete! All exercises unlocked.',
+    ja: '🎉 ラウンド完了！全ての練習が解放されました。'
+  };
+  toast.textContent = msgs[settings.lang]||msgs.de;
+  toast.style.background = 'var(--success)';
+  toast.style.display = 'block';
+  Audio.play('correct');
+  launchConfetti();
+  setTimeout(()=>{ toast.style.display='none'; toast.style.background=''; }, 3500);
+}
+
 function getNumStats() {
   if (!currentProfile) return { total:0, correct:0, perNum:{} };
   currentProfile.numStats = currentProfile.numStats || { total:0, correct:0, perNum:{} };
@@ -237,10 +279,18 @@ function getNumStats() {
 }
 
 function randNum() {
-  return Math.floor(Math.random() * 25); // 0–24
+  // Adaptive: weight numbers that were wrong more often
+  const ns = getNumStats();
+  const pool = [];
+  for (const n of NUM_POOL) {
+    const s = ns.perNum[n];
+    const weight = s ? Math.max(1, (s.failed||0)*2 + 1) : 1;
+    for (let i=0; i<weight; i++) pool.push(n);
+  }
+  return pool[Math.floor(Math.random()*pool.length)];
 }
 
-function showNumPopup() {
+function showNumPopup(countInBalance = false) {
   const L = LANGS[settings.lang];
   const n = randNum();
   const correct = (NUM_WORDS[settings.lang]||NUM_WORDS.de)[n].toLowerCase();
@@ -375,7 +425,7 @@ function renderNumStats() {
   totalEl.innerHTML = `${L.numStatsTotal}: ${ns.total} &nbsp;|&nbsp; 🟢 ${c1} &nbsp; 🟡 ${c2} &nbsp; 🟠 ${c3} &nbsp; 🔴 ${fail}`;
 
   grid.innerHTML = '';
-  for (let n = 0; n <= 24; n++) {
+  for (const n of NUM_POOL) {
     const s = ns.perNum[n] || { total:0 };
     const c1n = s.correct1||0, c2n = s.correct2||0, c3n = s.correct3||0, fn = s.failed||0;
     const tried = s.total || 0;
@@ -742,7 +792,7 @@ function selectProfile(idx) {
   currentProfile.langStats   = currentProfile.langStats   || {};
   currentProfile.langWeights = currentProfile.langWeights || {};
   currentProfile.numStats    = currentProfile.numStats    || { total:0, correct:0, perNum:{} };
-  // Reset session counters each login
+  currentProfile.balance     = currentProfile.balance     || { counts:[0,0,0,0,0], round:1 };
   currentProfile.langSession = {};
   G.mode = currentProfile.lastMode || 0;
   G.diff = currentProfile.lastDiff || 0;
@@ -760,6 +810,7 @@ function renderApp() {
   renderScores();
   renderPathRow();
   renderDailyBanner();
+  renderBalanceBanner();
   Badges.render(currentProfile.earned, settings.lang);
   document.getElementById('lbl-badges').textContent = L.badgesTitle;
   renderNumStats();
@@ -771,16 +822,22 @@ function renderModeTabs() {
   const L = LANGS[settings.lang];
   const mt = document.getElementById('mode-tabs'); mt.innerHTML = '';
   mt.style.gridTemplateColumns = 'repeat(3, 1fr)';
+  const b = getBalanceStats();
   L.modes.forEach((m, i)=>{
-    const b = document.createElement('button');
-    b.className = 'mode-tab' + (i===G.mode?' active':'');
-    b.textContent = m;
-    b.onclick = ()=>{
+    const locked = isModeLocked(i);
+    const count = b.counts[i]||0;
+    const b2 = document.createElement('button');
+    b2.className = 'mode-tab' + (i===G.mode?' active':'') + (locked?' mode-tab-locked':'');
+    b2.style.position = 'relative';
+    b2.innerHTML = `${locked?'🔒 ':''}${m}<br><span style="font-size:10px;opacity:.7">${count}/${BALANCE_MAX}</span>`;
+    b2.disabled = locked && i !== G.mode;
+    b2.onclick = ()=>{
+      if (locked) return;
       Audio.play('tick'); G.mode=i; currentProfile.lastMode=i; saveCurrentProfile();
       if (i === 4) { renderTask(); renderModeTabs(); }
       else { newTask(); animateTransition(renderTask); renderModeTabs(); }
     };
-    mt.appendChild(b);
+    mt.appendChild(b2);
   });
 }
 
@@ -795,6 +852,26 @@ function renderDifficulty() {
     b.onclick = ()=>{ Audio.play('tick'); G.diff=i; currentProfile.lastDiff=i; saveCurrentProfile(); newTask(); renderApp(); };
     dr.appendChild(b);
   });
+}
+
+function renderBalanceBanner() {
+  const banner = document.getElementById('balance-banner');
+  if (!banner) return;
+  const b = getBalanceStats();
+  const L = LANGS[settings.lang];
+  const modeNames = L.modes;
+  const locked = b.counts.map((c,i)=>c>=BALANCE_MAX ? modeNames[i] : null).filter(Boolean);
+  if (locked.length === 0) { banner.style.display='none'; return; }
+  banner.style.display = 'block';
+  const remaining = b.counts.map((c,i)=>BALANCE_MAX-c).filter(c=>c>0);
+  const minLeft = Math.min(...remaining);
+  const msgs = {
+    de: `🔒 ${locked.join(', ')} gesperrt — noch mind. ${minLeft} Aufgabe(n) in anderen Modi`,
+    it: `🔒 ${locked.join(', ')} bloccato — ancora min. ${minLeft} esercizi in altri modi`,
+    en: `🔒 ${locked.join(', ')} locked — at least ${minLeft} more task(s) in other modes`,
+    ja: `🔒 ${locked.join(', ')} ロック中 — 他のモードであと${minLeft}問`
+  };
+  banner.textContent = msgs[settings.lang]||msgs.de;
 }
 
 function renderScores() {
@@ -897,6 +974,7 @@ function renderSettingsScreen() {
       currentProfile.earned=[]; currentProfile.weights={};
       currentProfile.langStats={}; currentProfile.langWeights={}; currentProfile.langSession={};
       currentProfile.modeStats={}; currentProfile.numStats={ total:0, correct:0, perNum:{} };
+      currentProfile.balance={ counts:[0,0,0,0,0], round:1 };
       saveCurrentProfile(); showScreen('app'); renderApp();
     }
   };
@@ -1226,7 +1304,7 @@ function renderTask() {
         inp.disabled = true;
         saveCurrentProfile(); renderNumStats();
         const nb = document.createElement('button'); nb.className='btn btn-primary'; nb.textContent=L.next;
-        nb.onclick=()=>{ G.currentNum=undefined; hideAll(); newNumTask(); animateTransition(renderTask); };
+        nb.onclick=()=>{ recordModePlay(4); G.currentNum=undefined; hideAll(); newNumTask(); animateTransition(renderTask); renderModeTabs(); };
         btnRow.innerHTML=''; btnRow.appendChild(nb);
       } else {
         Audio.play('wrong');
@@ -1239,7 +1317,7 @@ function renderTask() {
           G.answered = true; inp.disabled = true;
           saveCurrentProfile(); renderNumStats();
           const nb = document.createElement('button'); nb.className='btn btn-primary'; nb.textContent=L.next;
-          nb.onclick=()=>{ G.currentNum=undefined; hideAll(); newNumTask(); animateTransition(renderTask); };
+          nb.onclick=()=>{ recordModePlay(4); G.currentNum=undefined; hideAll(); newNumTask(); animateTransition(renderTask); renderModeTabs(); };
           btnRow.innerHTML=''; btnRow.appendChild(nb);
         } else {
           const left = MAX_TRIES - attempt;
@@ -1345,16 +1423,19 @@ function addNextBtn(btnRow, L) {
   const b=document.createElement('button'); b.className='btn btn-primary'; b.textContent=L.next;
   b.onclick=()=>{
     Audio.play('tick');
+    // Record balance play for clock modes (not triggered from popup)
+    if (G.mode < 4) recordModePlay(G.mode);
     numExerciseCounter++;
     if (numExerciseCounter >= 5) {
       numExerciseCounter = 0;
       newTask();
       animateTransition(renderTask);
-      setTimeout(()=>showNumPopup(), 400);
+      setTimeout(()=>showNumPopup(false), 400); // false = don't count in balance
     } else {
       newTask();
       animateTransition(renderTask);
     }
+    renderModeTabs();
   };
   btnRow.appendChild(b);
 }

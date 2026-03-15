@@ -294,18 +294,37 @@ const DIFFS = {
   2: { minutes: [0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55] }
 };
 
-// Number words 0–24 per language (for number writing exercise)
+// Number words — 0–24 plus tens 30–100 per language
 const NUM_WORDS = {
-  de: ['null','eins','zwei','drei','vier','fünf','sechs','sieben','acht','neun','zehn',
-    'elf','zwölf','dreizehn','vierzehn','fünfzehn','sechzehn','siebzehn','achtzehn','neunzehn',
-    'zwanzig','einundzwanzig','zweiundzwanzig','dreiundzwanzig','vierundzwanzig'],
-  it: ['zero','uno','due','tre','quattro','cinque','sei','sette','otto','nove','dieci',
-    'undici','dodici','tredici','quattordici','quindici','sedici','diciassette','diciotto','diciannove',
-    'venti','ventuno','ventidue','ventitré','ventiquattro'],
-  en: ['zero','one','two','three','four','five','six','seven','eight','nine','ten',
-    'eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen',
-    'twenty','twenty-one','twenty-two','twenty-three','twenty-four'],
-  ja: ['ゼロ','いち','に','さん','し','ご','ろく','しち','はち','く','じゅう',
-    'じゅういち','じゅうに','じゅうさん','じゅうし','じゅうご','じゅうろく','じゅうしち','じゅうはち','じゅうく',
-    'にじゅう','にじゅういち','にじゅうに','にじゅうさん','にじゅうし']
+  de: {
+    0:'null',1:'eins',2:'zwei',3:'drei',4:'vier',5:'fünf',6:'sechs',7:'sieben',8:'acht',9:'neun',
+    10:'zehn',11:'elf',12:'zwölf',13:'dreizehn',14:'vierzehn',15:'fünfzehn',16:'sechzehn',
+    17:'siebzehn',18:'achtzehn',19:'neunzehn',20:'zwanzig',21:'einundzwanzig',22:'zweiundzwanzig',
+    23:'dreiundzwanzig',24:'vierundzwanzig',
+    30:'dreißig',40:'vierzig',50:'fünfzig',60:'sechzig',70:'siebzig',80:'achtzig',90:'neunzig',100:'hundert'
+  },
+  it: {
+    0:'zero',1:'uno',2:'due',3:'tre',4:'quattro',5:'cinque',6:'sei',7:'sette',8:'otto',9:'nove',
+    10:'dieci',11:'undici',12:'dodici',13:'tredici',14:'quattordici',15:'quindici',16:'sedici',
+    17:'diciassette',18:'diciotto',19:'diciannove',20:'venti',21:'ventuno',22:'ventidue',
+    23:'ventitré',24:'ventiquattro',
+    30:'trenta',40:'quaranta',50:'cinquanta',60:'sessanta',70:'settanta',80:'ottanta',90:'novanta',100:'cento'
+  },
+  en: {
+    0:'zero',1:'one',2:'two',3:'three',4:'four',5:'five',6:'six',7:'seven',8:'eight',9:'nine',
+    10:'ten',11:'eleven',12:'twelve',13:'thirteen',14:'fourteen',15:'fifteen',16:'sixteen',
+    17:'seventeen',18:'eighteen',19:'nineteen',20:'twenty',21:'twenty-one',22:'twenty-two',
+    23:'twenty-three',24:'twenty-four',
+    30:'thirty',40:'forty',50:'fifty',60:'sixty',70:'seventy',80:'eighty',90:'ninety',100:'one hundred'
+  },
+  ja: {
+    0:'ゼロ',1:'いち',2:'に',3:'さん',4:'し',5:'ご',6:'ろく',7:'しち',8:'はち',9:'く',
+    10:'じゅう',11:'じゅういち',12:'じゅうに',13:'じゅうさん',14:'じゅうし',15:'じゅうご',
+    16:'じゅうろく',17:'じゅうしち',18:'じゅうはち',19:'じゅうく',20:'にじゅう',
+    21:'にじゅういち',22:'にじゅうに',23:'にじゅうさん',24:'にじゅうし',
+    30:'さんじゅう',40:'よんじゅう',50:'ごじゅう',60:'ろくじゅう',70:'ななじゅう',80:'はちじゅう',90:'きゅうじゅう',100:'ひゃく'
+  }
 };
+
+// All numbers in the exercise pool (0–24 + tens 30–100)
+const NUM_POOL = [0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,30,40,50,60,70,80,90,100];
