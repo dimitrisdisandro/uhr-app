@@ -306,6 +306,8 @@ function showNumPopup(countInBalance = false) {
   inp.style.borderColor = 'var(--border)';
   fb.className = 'fb-neutral'; fb.textContent = '';
   btns.innerHTML = '';
+  // Don't touch G.answered here — it belongs to the clock task behind the popup
+  // We reset it only when the popup closes (so the clock task remains resumable)
   overlay.classList.remove('hidden');
 
   const MAX_TRIES = 3;
@@ -340,7 +342,7 @@ function showNumPopup(countInBalance = false) {
     const nextBtn = document.createElement('button');
     nextBtn.className = 'btn btn-primary'; nextBtn.textContent = L.next;
     nextBtn.style.flex = '1';
-    nextBtn.onclick = ()=>{ overlay.classList.add('hidden'); };
+    nextBtn.onclick = ()=>{ overlay.classList.add('hidden'); G.answered = false; };
     btns.appendChild(nextBtn);
   }
 
@@ -501,7 +503,7 @@ function showNumPopupForN(n) {
     const closeBtn = document.createElement('button');
     closeBtn.className = 'btn btn-primary'; closeBtn.textContent = L.next;
     closeBtn.style.flex = '1';
-    closeBtn.onclick = ()=>{ overlay.classList.add('hidden'); renderNumStats(); };
+    closeBtn.onclick = ()=>{ overlay.classList.add('hidden'); G.answered = false; renderNumStats(); };
     btns.appendChild(closeBtn);
   }
 
@@ -522,7 +524,7 @@ function showNumPopupForN(n) {
       fb.className = 'fb-success';
       fb.textContent = L.fb.correct + (attempt > 1 ? ` (${attempt}. Versuch)` : '');
       Audio.speak(correct, settings.lang);
-      G.answered = true; inp.disabled = true;
+      inp.disabled = true;
       updateCell(true);
       saveCurrentProfile();
       buildCloseBtn();
