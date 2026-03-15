@@ -821,7 +821,6 @@ function renderApp() {
 function renderModeTabs() {
   const L = LANGS[settings.lang];
   const mt = document.getElementById('mode-tabs'); mt.innerHTML = '';
-  mt.style.gridTemplateColumns = 'repeat(3, 1fr)';
   const b = getBalanceStats();
   L.modes.forEach((m, i)=>{
     const locked = isModeLocked(i);
