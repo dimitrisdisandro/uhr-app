@@ -302,7 +302,8 @@ function showNumPopup(countInBalance = false) {
   document.getElementById('num-popup-title').textContent = L.numPopupTitle;
   document.getElementById('num-popup-sub').textContent = L.numPopupSub;
   document.getElementById('num-popup-number').textContent = n;
-  inp.value = ''; inp.placeholder = L.numPlaceholder;
+  inp.value = ''; inp.disabled = false; inp.placeholder = L.numPlaceholder;
+  inp.style.borderColor = 'var(--border)';
   fb.className = 'fb-neutral'; fb.textContent = '';
   btns.innerHTML = '';
   overlay.classList.remove('hidden');
