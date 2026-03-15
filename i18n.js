@@ -16,7 +16,7 @@ const NUM_JA = ['ゼロ','一','二','三','四','五','六','七','八','九','
 
 // Minute words DE (0,5,10,...55)
 const MIN_DE = {0:'null',5:'fünf',10:'zehn',15:'fünfzehn',20:'zwanzig',25:'fünfundzwanzig',
-  30:'dreißig',35:'fünfunddreißig',40:'vierzig',45:'fünfundvierzig',50:'fünfzig',55:'fünfundfünfzig'};
+  30:'dreissig',35:'fünfunddreissig',40:'vierzig',45:'fünfundvierzig',50:'fünfzig',55:'fünfundfünfzig'};
 
 // "halb X" / "vor X" braucht "eins" statt "ein" für 1
 const NUM_DE_HALB = ['null','eins','zwei','drei','vier','fünf','sechs','sieben','acht','neun','zehn',
@@ -25,7 +25,8 @@ const NUM_DE_HALB = ['null','eins','zwei','drei','vier','fünf','sechs','sieben'
 // Italienisch verwendet immer 12h-Zahlen (1–12)
 const NUM_IT_12 = ['dodici','una','due','tre','quattro','cinque','sei','sette','otto','nove','dieci','undici','dodici'];
 
-function h12(h) { return h % 12 === 0 ? 12 : h % 12; }
+// Normalize input: lowercase + replace ß with ss (Swiss German)
+function normalizeInput(s) { return s.trim().toLowerCase().replace(/ß/g, 'ss'); }
 function nextH12(h) { return h12(h) % 12 + 1; }
 // For 24h: next hour wraps at 24
 function nextH24(h) { return (h + 1) % 24; }
@@ -301,7 +302,7 @@ const NUM_WORDS = {
     10:'zehn',11:'elf',12:'zwölf',13:'dreizehn',14:'vierzehn',15:'fünfzehn',16:'sechzehn',
     17:'siebzehn',18:'achtzehn',19:'neunzehn',20:'zwanzig',21:'einundzwanzig',22:'zweiundzwanzig',
     23:'dreiundzwanzig',24:'vierundzwanzig',
-    30:'dreißig',40:'vierzig',50:'fünfzig',60:'sechzig',70:'siebzig',80:'achtzig',90:'neunzig',100:'hundert'
+    30:'dreissig',40:'vierzig',50:'fünfzig',60:'sechzig',70:'siebzig',80:'achtzig',90:'neunzig',100:'hundert'
   },
   it: {
     0:'zero',1:'uno',2:'due',3:'tre',4:'quattro',5:'cinque',6:'sei',7:'sette',8:'otto',9:'nove',

@@ -293,7 +293,7 @@ function randNum() {
 function showNumPopup(countInBalance = false) {
   const L = LANGS[settings.lang];
   const n = randNum();
-  const correct = (NUM_WORDS[settings.lang]||NUM_WORDS.de)[n].toLowerCase();
+  const correct = (NUM_WORDS[settings.lang]||NUM_WORDS.de)[n].toLowerCase().replace(/ß/g, 'ss');
   const overlay = document.getElementById('num-popup-overlay');
   const fb = document.getElementById('num-popup-feedback');
   const inp = document.getElementById('num-popup-input');
@@ -347,7 +347,7 @@ function showNumPopup(countInBalance = false) {
   }
 
   function checkAnswer() {
-    const val = inp.value.trim().toLowerCase();
+    const val = normalizeInput(inp.value);
     if (!val) { inp.focus(); return; }
     attempt++;
     Audio.play('tick');
@@ -454,7 +454,7 @@ function renderNumStats() {
 // Show number popup for a specific number (from stats click — no balance counting)
 function showNumPopupForN(n) {
   const L = LANGS[settings.lang];
-  const correct = (NUM_WORDS[settings.lang]||NUM_WORDS.de)[n].toLowerCase();
+  const correct = (NUM_WORDS[settings.lang]||NUM_WORDS.de)[n].toLowerCase().replace(/ß/g, 'ss');
   const overlay = document.getElementById('num-popup-overlay');
   const fb = document.getElementById('num-popup-feedback');
   const inp = document.getElementById('num-popup-input');
@@ -508,7 +508,7 @@ function showNumPopupForN(n) {
   }
 
   function checkAnswer() {
-    const val = inp.value.trim().toLowerCase();
+    const val = normalizeInput(inp.value);
     if (!val) { inp.focus(); return; }
     attempt++;
     Audio.play('tick');
@@ -1368,7 +1368,7 @@ function renderTask() {
   // ── MODE 4: NUMBER WRITING ──
   if (G.mode === 4) {
     const n = G.currentNum !== undefined ? G.currentNum : (G.currentNum = randNum());
-    const correct = (NUM_WORDS[settings.lang]||NUM_WORDS.de)[n].toLowerCase();
+    const correct = (NUM_WORDS[settings.lang]||NUM_WORDS.de)[n].toLowerCase().replace(/ß/g, 'ss');
     document.getElementById('task-text').textContent = L.numTask(n);
     document.getElementById('task-sub').textContent = L.numSub();
     document.getElementById('clock-wrap').style.display = 'none';
@@ -1402,7 +1402,7 @@ function renderTask() {
 
     function checkNumAnswer() {
       if (G.answered) return;
-      const val = inp.value.trim().toLowerCase();
+      const val = normalizeInput(inp.value);
       if (!val) { inp.focus(); return; }
       attempt++;
       Audio.play('tick');
